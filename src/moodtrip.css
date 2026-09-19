@@ -1331,3 +1331,42 @@ a{text-decoration:none}
     font-size:23px;
   }
 }
+
+
+/* public review aggregate */
+.mtPublicAggregate{
+  margin-top:18px;
+  padding:16px;
+  display:grid;
+  grid-template-columns:auto 1fr;
+  gap:16px;
+  align-items:center;
+  border:1px solid var(--line);
+  background:#e8ded5;
+}
+.mtPublicAggregate>strong{
+  font:500 46px/.9 'Fraunces';
+  color:var(--clay-deep);
+}
+.mtPublicAggregate div span,
+.mtPublicAggregate div b,
+.mtPublicAggregate div small{
+  display:block;
+}
+.mtPublicAggregate div span,
+.mtPublicAggregate div b{
+  font:500 8px 'IBM Plex Mono';
+  letter-spacing:.05em;
+}
+.mtPublicAggregate div span{
+  color:#9a6b3a;
+}
+.mtPublicAggregate div b{
+  margin-top:5px;
+  color:var(--ink);
+}
+.mtPublicAggregate div small{
+  margin-top:5px;
+  font-size:8px;
+  color:#766d65;
+}
