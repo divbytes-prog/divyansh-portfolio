@@ -1441,3 +1441,59 @@ a:focus-visible,button:focus-visible{outline:2px solid var(--clay);outline-offse
     bottom:11px;
   }
 }
+
+
+/* profile portrait visibility refinement */
+.profilePortrait{
+  aspect-ratio:707/556;
+}
+.profilePortrait img{
+  object-fit:cover;
+  object-position:center center;
+}
+.profilePortrait figcaption{
+  left:14px;
+  right:14px;
+  bottom:14px;
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr);
+  align-items:center;
+  gap:14px;
+  padding:11px 13px;
+  border-top:0;
+  background:rgba(23,20,17,.78);
+  backdrop-filter:blur(5px);
+  -webkit-backdrop-filter:blur(5px);
+  box-sizing:border-box;
+}
+.profilePortrait figcaption span{
+  white-space:nowrap;
+  font-size:8px;
+}
+.profilePortrait figcaption b{
+  min-width:0;
+  white-space:nowrap;
+  text-align:right;
+  overflow:visible;
+  font-size:11px;
+  letter-spacing:.08em;
+  color:#fff;
+}
+@media(max-width:600px){
+  .profilePortrait figcaption{
+    left:10px;
+    right:10px;
+    bottom:10px;
+    grid-template-columns:1fr;
+    gap:4px;
+    padding:10px 11px;
+  }
+  .profilePortrait figcaption span{
+    font-size:7px;
+  }
+  .profilePortrait figcaption b{
+    font-size:10px;
+    text-align:left;
+    white-space:normal;
+  }
+}
