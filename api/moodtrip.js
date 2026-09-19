@@ -576,7 +576,10 @@ async function discoverReviewUrls(name,address,headers){
   const searchUrls=[
     googleSearch,
     'https://www.bing.com/search?count=12&setlang=en-IN&q='+encodeURIComponent(q),
-    'https://html.duckduckgo.com/html/?q='+encodeURIComponent(q)
+    'https://html.duckduckgo.com/html/?q='+encodeURIComponent(q),
+    'https://search.brave.com/search?source=web&q='+encodeURIComponent(q),
+    'https://www.mojeek.com/search?q='+encodeURIComponent(q),
+    'https://search.yahoo.com/search?p='+encodeURIComponent(q)
   ];
 
   const pages=await Promise.all(searchUrls.map(u=>fetchHtml(u,headers,5500).catch(()=>'')));
