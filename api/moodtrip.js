@@ -408,6 +408,10 @@ async function googleStreetViewMeta(lat,lng){
     lng:Number(data.location.lng)
   };
   const heading=bearingDegrees(panoLocation,{lat,lng});
+  const embedUrl='https://www.google.com/maps/embed/v1/streetview?key='+encodeURIComponent(key)+
+    '&location='+encodeURIComponent(lat+','+lng)+
+    '&heading='+encodeURIComponent(heading.toFixed(1))+
+    '&pitch=0&fov=78';
   return {
     configured:true,
     available:true,
@@ -415,6 +419,7 @@ async function googleStreetViewMeta(lat,lng){
     panoLocation,
     date:data.date||null,
     heading,
+    embedUrl,
     distanceMeters:Math.round(haversineKm({lat,lng},panoLocation)*1000),
     openUrl
   };
