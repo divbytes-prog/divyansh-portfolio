@@ -150,3 +150,8 @@ a{text-decoration:none}
 @media(prefers-reduced-motion:reduce){
   html{scroll-behavior:auto}.mtPop{transform:none!important}.mtPipeLine i,.mtBars i,.mtOrbit,.mtPulse{animation:none!important}
 }
+
+
+/* fast/deep mood controls */
+.mtAutoRow>div{display:flex;gap:7px;flex-wrap:wrap}
+.mtAutoRow button:disabled{opacity:.55;cursor:wait}
