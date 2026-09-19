@@ -388,6 +388,68 @@ function LiveMoodSignal({mood,status}){
   </div>;
 }
 
+function tileX(lng,z){return((lng+180)/360)*2**z}
+function tileY(lat,z){
+  const r=lat*Math.PI/180;
+  return(1-Math.asinh(Math.tan(r))/Math.PI)/2*2**z;
+}
+
+function TileMap({center,places,selectedId,onSelect}){
+  const [zoom,setZoom]=useState(14);
+  useEffect(()=>{setZoom(14)},[center?.lat,center?.lng]);
+  if(!center)return null;
+
+  const size=256;
+  const cx=tileX(center.lng,zoom),cy=tileY(center.lat,zoom);
+  const baseX=Math.floor(cx)-2,baseY=Math.floor(cy)-2;
+  const centerPx=(cx-baseX)*size,centerPy=(cy-baseY)*size;
+  const tiles=[];
+  for(let y=0;y<5;y++)for(let x=0;x<5;x++){
+    const tx=baseX+x,ty=baseY+y;
+    tiles.push(<img
+      key={tx+'-'+ty+'-'+zoom}
+      className="mtTile"
+      style={{left:x*size,top:y*size}}
+      src={'https://basemaps.cartocdn.com/light_all/'+zoom+'/'+tx+'/'+ty+'@2x.png'}
+      alt=""
+      draggable="false"
+      onError={e=>{
+        const el=e.currentTarget;
+        if(!el.dataset.fallback){
+          el.dataset.fallback='1';
+          el.src='https://tile.openstreetmap.org/'+zoom+'/'+tx+'/'+ty+'.png';
+        }else{
+          el.style.opacity='.08';
+        }
+      }}
+    />);
+  }
+
+  return <div className="mtTileMap">
+    <div className="mtTileCanvas" style={{left:'calc(50% - '+centerPx+'px)',top:'calc(50% - '+centerPy+'px)'}}>
+      {tiles}
+      {places.slice(0,8).map((p,i)=>{
+        const px=(tileX(p.lng,zoom)-baseX)*size;
+        const py=(tileY(p.lat,zoom)-baseY)*size;
+        return <button
+          key={p.id}
+          className={'mtMapMarker '+(selectedId===p.id?'active':'')}
+          style={{left:px,top:py}}
+          onClick={()=>onSelect(p.id)}
+          title={p.name}
+          aria-label={'Show '+p.name}
+        ><span>{i+1}</span></button>;
+      })}
+    </div>
+    <div className="mtMapCrosshair" aria-hidden="true"/>
+    <div className="mtMapZoom">
+      <button onClick={()=>setZoom(z=>Math.min(17,z+1))} aria-label="Zoom in">+</button>
+      <button onClick={()=>setZoom(z=>Math.max(11,z-1))} aria-label="Zoom out">−</button>
+    </div>
+    <div className="mtMapAttribution">© OpenStreetMap · CARTO</div>
+  </div>;
+}
+
 function App(){
   const reduce=useReducedMotion();
   const {scrollYProgress}=useScroll();
@@ -581,15 +643,7 @@ function App(){
     try{localStorage.setItem('moodtrip-v2-likes',JSON.stringify(next))}catch{}
   }
 
-  const mapUrl=useMemo(()=>{
-    const center=selected?{lat:selected.lat,lng:selected.lng}:coords;
-    if(!center)return '';
-    const d=.025;
-    return 'https://www.openstreetmap.org/export/embed.html?bbox='+
-      encodeURIComponent(center.lng-d)+','+encodeURIComponent(center.lat-d)+','+
-      encodeURIComponent(center.lng+d)+','+encodeURIComponent(center.lat+d)+
-      '&layer=mapnik&marker='+encodeURIComponent(center.lat)+','+encodeURIComponent(center.lng);
-  },[selected,coords]);
+  const mapCenter=useMemo(()=>selected?{lat:selected.lat,lng:selected.lng}:coords,[selected,coords]);
 
   const googleMapsUrl=place=>'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(place.name+' '+(locationLabel||''))+(place.googlePlaceId?'&query_place_id='+encodeURIComponent(place.googlePlaceId):'');
 
@@ -730,7 +784,7 @@ function App(){
         <div className="mtResultsGrid">
           <PopWindow className="mtMapWindow">
             <div className="mtWindowTop"><span>LIVE MAP</span><b>{selected?selected.name.toUpperCase():'AREA'}</b></div>
-            {mapUrl&&<iframe title="MoodTrip map" src={mapUrl} loading="lazy"/>}
+            {mapCenter&&<TileMap center={mapCenter} places={places} selectedId={selected?.id} onSelect={setSelectedId}/>}
             <div className="mtMapFooter"><span>{selected?.distanceKm.toFixed(1)} KM AWAY</span><a href={selected?googleMapsUrl(selected):'#'} target="_blank" rel="noreferrer">OPEN IN GOOGLE MAPS ↗</a></div>
           </PopWindow>
 
