@@ -880,3 +880,85 @@ a{text-decoration:none}
 .mtHeroFx canvas{
   pointer-events:auto!important;
 }
+
+
+/* exact building inspection */
+.mtBuildingStatus{
+  position:absolute;
+  z-index:520;
+  left:12px;
+  top:56px;
+  display:flex;
+  align-items:center;
+  gap:7px;
+  padding:7px 9px;
+  border:1px solid rgba(23,20,17,.18);
+  background:rgba(251,248,242,.92);
+  backdrop-filter:blur(8px);
+  box-shadow:4px 4px 0 rgba(23,20,17,.08);
+  font:500 7px 'IBM Plex Mono';
+  letter-spacing:.05em;
+  color:#5d554f;
+  pointer-events:none;
+}
+.mtBuildingStatus i{
+  width:7px;
+  height:7px;
+  border-radius:50%;
+  background:#8b8178;
+}
+.mtBuildingStatus.loading i{
+  background:#b88765;
+  box-shadow:0 0 0 4px rgba(184,135,101,.12);
+}
+.mtBuildingStatus.found i{
+  background:#55785b;
+  box-shadow:0 0 0 4px rgba(85,120,91,.12);
+}
+.mtBuildingTooltip{
+  border:1px solid rgba(255,255,255,.4)!important;
+  border-radius:0!important;
+  background:rgba(23,20,17,.94)!important;
+  color:white!important;
+  box-shadow:5px 5px 0 rgba(23,20,17,.18)!important;
+  font:500 8px 'IBM Plex Mono'!important;
+  padding:7px 9px!important;
+}
+.mtBuildingTooltip:before{
+  border-top-color:rgba(23,20,17,.94)!important;
+}
+.mtMapFooter{
+  align-items:flex-start;
+}
+.mtMapFooter>div{
+  display:flex;
+  justify-content:flex-end;
+  flex-wrap:wrap;
+  gap:8px 13px;
+  text-align:right;
+}
+.mtMapFooter>div a{
+  white-space:nowrap;
+}
+.mtMapFooter>div a:first-child{
+  color:var(--clay-deep);
+}
+.mtMapFooter>div a:nth-child(2){
+  color:#596b57;
+}
+.mtReviewUnavailable h4{
+  max-width:360px;
+}
+@media(max-width:620px){
+  .mtBuildingStatus{
+    top:52px;
+    max-width:calc(100% - 84px);
+    overflow:hidden;
+    white-space:nowrap;
+    text-overflow:ellipsis;
+  }
+  .mtMapFooter>div{
+    justify-content:flex-start;
+    text-align:left;
+  }
+}
