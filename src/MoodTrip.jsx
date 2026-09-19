@@ -401,6 +401,9 @@ function InteractiveMap({center,places,selectedId,onSelect}){
   const [layer,setLayer]=useState('satellite');
   const [zoom,setZoom]=useState(20);
   const [buildingState,setBuildingState]=useState('idle');
+  const [streetState,setStreetState]=useState('idle');
+  const [streetMeta,setStreetMeta]=useState(null);
+  const selectedPlace=places.find(p=>p.id===selectedId)||places[0]||null;
 
   useEffect(()=>{
     if(!rootRef.current||!center||mapRef.current)return;
@@ -448,6 +451,8 @@ function InteractiveMap({center,places,selectedId,onSelect}){
     if(baseRef.current){map.removeLayer(baseRef.current);baseRef.current=null}
     if(labelsRef.current){map.removeLayer(labelsRef.current);labelsRef.current=null}
 
+    if(layer==='camera')return;
+
     if(layer==='satellite'){
       baseRef.current=L.tileLayer(
         'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
@@ -482,6 +487,35 @@ function InteractiveMap({center,places,selectedId,onSelect}){
       ).addTo(map);
     }
   },[layer,center?.lat,center?.lng]);
+
+  useEffect(()=>{
+    if(layer!=='camera'||!center){
+      setStreetState('idle');
+      setStreetMeta(null);
+      return;
+    }
+    let alive=true;
+    setStreetState('loading');
+    setStreetMeta(null);
+
+    (async()=>{
+      try{
+        const d=await apiJson(
+          '/api/moodtrip?action=streetviewmeta&lat='+encodeURIComponent(center.lat)+'&lng='+encodeURIComponent(center.lng),
+          {},
+          9000
+        );
+        if(!alive)return;
+        setStreetMeta(d);
+        setStreetState('ready');
+      }catch{
+        if(!alive)return;
+        setStreetState('error');
+      }
+    })();
+
+    return()=>{alive=false};
+  },[layer,center?.lat,center?.lng,selectedId]);
 
   useEffect(()=>{
     const map=mapRef.current;
@@ -569,21 +603,66 @@ function InteractiveMap({center,places,selectedId,onSelect}){
     });
   },[places,selectedId,onSelect]);
 
+  const exactStreetUrl='https://www.google.com/maps/@?api=1&map_action=pano&viewpoint='+encodeURIComponent(center.lat+','+center.lng);
+  const streetImage='/api/moodtrip?action=streetviewimage&lat='+encodeURIComponent(center.lat)+'&lng='+encodeURIComponent(center.lng);
+
   return <div className="mtLeafletShell">
     <div className="mtMapLayerSwitch" role="group" aria-label="Map style">
       <button className={layer==='satellite'?'active':''} onClick={()=>setLayer('satellite')}>SATELLITE</button>
-      <button className={layer==='street'?'active':''} onClick={()=>setLayer('street')}>STREET</button>
+      <button className={layer==='street'?'active':''} onClick={()=>setLayer('street')}>STREET MAP</button>
+      <button className={layer==='camera'?'active':''} onClick={()=>setLayer('camera')}>STREET CAMERA</button>
     </div>
-    <div className={'mtBuildingStatus '+buildingState}>
+
+    <div className={'mtBuildingStatus '+(layer==='camera'?'camera':buildingState)}>
       <i/>
-      <span>{buildingState==='loading'?'FINDING BUILDING OUTLINE':buildingState==='found'?'EXACT BUILDING OUTLINE':'EXACT COORDINATE ZOOM'}</span>
+      <span>{layer==='camera'
+        ?(streetState==='loading'?'LOCATING GOOGLE STREET CAMERA':'GOOGLE STREET CAMERA')
+        :(buildingState==='loading'?'FINDING BUILDING OUTLINE':buildingState==='found'?'EXACT BUILDING OUTLINE':'EXACT COORDINATE ZOOM')}</span>
     </div>
+
     <div className="mtLeafletMap" ref={rootRef}/>
-    <div className="mtMapHint">SCROLL / PINCH / DRAG · BUILDING OUTLINE STAYS PRECISE AT MAX SATELLITE DETAIL</div>
-    <div className="mtZoomReadout">Z{Number(zoom).toFixed(zoom%1?1:0)} · {layer==='satellite'?'SATELLITE':'STREET'}</div>
+
+    {layer==='camera'&&<div className="mtStreetCamera">
+      {streetState==='loading'&&<div className="mtStreetCameraState"><i/><span>FINDING THE NEAREST STREET-VIEW PANORAMA…</span></div>}
+
+      {streetState==='ready'&&streetMeta?.available&&<>
+        <img
+          src={streetImage}
+          alt={'Google Street View near '+(selectedPlace?.name||'selected place')}
+          onError={()=>setStreetState('error')}
+        />
+        <div className="mtStreetCameraCaption">
+          <div>
+            <span>GOOGLE STREET VIEW</span>
+            <b>{selectedPlace?.name||'SELECTED BUILDING'}</b>
+            <small>{streetMeta.distanceMeters!=null?streetMeta.distanceMeters+' m from selected coordinate':''}{streetMeta.date?' · '+streetMeta.date:''}</small>
+          </div>
+          <a href={streetMeta.openUrl||exactStreetUrl} target="_blank" rel="noreferrer">OPEN 360° ↗</a>
+        </div>
+      </>}
+
+      {streetState==='ready'&&!streetMeta?.available&&<div className="mtStreetCameraFallback">
+        <span>{streetMeta?.configured?'NO GOOGLE PANORAMA FOUND':'GOOGLE STREET CAMERA'}</span>
+        <h4>{streetMeta?.configured?'No Street View is published close enough to this coordinate.':'One Google Maps key is needed to show the car-camera photo here.'}</h4>
+        <p>{streetMeta?.configured
+          ?'The selected building is still correct. Open Google Street View to check nearby published panoramas.'
+          :'Google requires a Maps Platform API key for embedded Street View imagery. The exact-coordinate Google Street View link still works now.'}</p>
+        <a href={streetMeta?.openUrl||exactStreetUrl} target="_blank" rel="noreferrer">OPEN EXACT GOOGLE STREET VIEW ↗</a>
+      </div>}
+
+      {streetState==='error'&&<div className="mtStreetCameraFallback">
+        <span>STREET CAMERA TEMPORARILY UNAVAILABLE</span>
+        <h4>Open the selected coordinate directly in Google Street View.</h4>
+        <a href={exactStreetUrl} target="_blank" rel="noreferrer">OPEN GOOGLE STREET VIEW ↗</a>
+      </div>}
+    </div>}
+
+    <div className="mtMapHint">{layer==='camera'
+      ?'GOOGLE CAR-CAMERA VIEW · TARGETED TO THE SELECTED PLACE COORDINATE'
+      :'SCROLL / PINCH / DRAG · BUILDING OUTLINE STAYS PRECISE AT MAX AVAILABLE SATELLITE DETAIL'}</div>
+    <div className="mtZoomReadout">{layer==='camera'?'STREET CAMERA':('Z'+Number(zoom).toFixed(zoom%1?1:0)+' · '+(layer==='satellite'?'SATELLITE':'STREET'))}</div>
   </div>;
 }
-
 
 function App(){
   const reduce=useReducedMotion();
@@ -752,7 +831,7 @@ function App(){
         '&lat='+encodeURIComponent(place.lat)+
         '&lng='+encodeURIComponent(place.lng),
         {},
-        8500
+        16000
       );
       setPublicReviews(Array.isArray(d.items)?d.items:[]);
       setPublicReviewState('ready');
@@ -1178,9 +1257,13 @@ function App(){
             </div>
             </>}
 
-            {publicReviewState!=='loading'&&!publicReviews.length&&<div className="mtPublicReviewEmpty">
-              <span>NO PUBLIC REVIEW SNIPPETS FOUND</span>
-              <p>This place may not have indexed reviews on the public sources MoodTrip can access. You can still check Google below or add a MoodTrip review.</p>
+            {publicReviewState==='ready'&&!publicReviews.length&&<div className="mtPublicReviewEmpty">
+              <span>NO EXTERNAL EXCERPT EXPOSED FOR THIS EXACT PLACE</span>
+              <p>MoodTrip could not verify an individual public excerpt for this exact branch. Use the Google button below for the selected place rather than showing a review from a different branch.</p>
+            </div>}
+            {publicReviewState==='error'&&<div className="mtPublicReviewEmpty error">
+              <span>PUBLIC REVIEW LOOKUP TIMED OUT</span>
+              <p>The external review source did not answer in time. Your selected place is unchanged; Google Reviews below still opens that exact place.</p>
             </div>}
           </section>
 
