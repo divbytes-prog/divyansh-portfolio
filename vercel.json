@@ -1,0 +1,6 @@
+{
+  "rewrites": [
+    { "source": "/moodtrip", "destination": "/index.html" },
+    { "source": "/moodtrip/:path*", "destination": "/index.html" }
+  ]
+}
