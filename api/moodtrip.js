@@ -371,6 +371,90 @@ async function googleReviews(name,lat,lng){
 }
 
 
+
+function bearingDegrees(from,to){
+  const lat1=from.lat*Math.PI/180;
+  const lat2=to.lat*Math.PI/180;
+  const dLon=(to.lng-from.lng)*Math.PI/180;
+  const y=Math.sin(dLon)*Math.cos(lat2);
+  const x=Math.cos(lat1)*Math.sin(lat2)-Math.sin(lat1)*Math.cos(lat2)*Math.cos(dLon);
+  return (Math.atan2(y,x)*180/Math.PI+360)%360;
+}
+
+function googleStreetViewOpenUrl(lat,lng){
+  return 'https://www.google.com/maps/@?api=1&map_action=pano&viewpoint='+encodeURIComponent(lat+','+lng);
+}
+
+async function googleStreetViewMeta(lat,lng){
+  const key=process.env.GOOGLE_MAPS_API_KEY||process.env.GOOGLE_PLACES_API_KEY;
+  const openUrl=googleStreetViewOpenUrl(lat,lng);
+  if(!key)return {configured:false,available:false,openUrl};
+
+  const u='https://maps.googleapis.com/maps/api/streetview/metadata?location='+
+    encodeURIComponent(lat+','+lng)+
+    '&radius=120&source=outdoor&key='+encodeURIComponent(key);
+  const data=await fetchJson(u,{},6500);
+  if(data?.status!=='OK'||!data.location){
+    return {
+      configured:true,
+      available:false,
+      status:data?.status||'UNKNOWN',
+      openUrl
+    };
+  }
+
+  const panoLocation={
+    lat:Number(data.location.lat),
+    lng:Number(data.location.lng)
+  };
+  const heading=bearingDegrees(panoLocation,{lat,lng});
+  return {
+    configured:true,
+    available:true,
+    panoId:data.pano_id,
+    panoLocation,
+    date:data.date||null,
+    heading,
+    distanceMeters:Math.round(haversineKm({lat,lng},panoLocation)*1000),
+    openUrl
+  };
+}
+
+async function sendGoogleStreetViewImage(res,lat,lng){
+  const key=process.env.GOOGLE_MAPS_API_KEY||process.env.GOOGLE_PLACES_API_KEY;
+  if(!key){
+    res.status(404);
+    res.setHeader('Content-Type','text/plain; charset=utf-8');
+    return res.end('Google Street View API key is not configured');
+  }
+
+  const meta=await googleStreetViewMeta(lat,lng);
+  if(!meta.available||!meta.panoId){
+    res.status(404);
+    res.setHeader('Content-Type','text/plain; charset=utf-8');
+    return res.end('Street View imagery is not available near this place');
+  }
+
+  const imageUrl='https://maps.googleapis.com/maps/api/streetview?size=640x420'+
+    '&pano='+encodeURIComponent(meta.panoId)+
+    '&heading='+encodeURIComponent(meta.heading.toFixed(1))+
+    '&pitch=0&fov=78&source=outdoor&key='+encodeURIComponent(key);
+
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),9000);
+  try{
+    const upstream=await fetch(imageUrl,{signal:controller.signal});
+    if(!upstream.ok)throw new Error('Street View '+upstream.status);
+    const bytes=await upstream.arrayBuffer();
+    res.status(200);
+    res.setHeader('Content-Type',upstream.headers.get('content-type')||'image/jpeg');
+    res.setHeader('Cache-Control','s-maxage=86400, stale-while-revalidate=604800');
+    return res.end(Buffer.from(bytes));
+  }finally{
+    clearTimeout(timer);
+  }
+}
+
 function polygonCentroid(coords){
   if(!coords?.length)return null;
   const sum=coords.reduce((a,p)=>({lat:a.lat+Number(p.lat||0),lng:a.lng+Number(p.lon||0)}),{lat:0,lng:0});
@@ -1082,6 +1166,37 @@ export default async function handler(req,res){
   };
 
   try{
+    if(action==='streetviewmeta'){
+      const lat=num(req.query.lat,-90,90);
+      const lng=num(req.query.lng,-180,180);
+      if(lat===null||lng===null)return send(res,400,{error:'Invalid coordinates'},0);
+      try{
+        const data=await googleStreetViewMeta(lat,lng);
+        return send(res,200,data,data.available?86400:300);
+      }catch(e){
+        console.warn('Street View metadata lookup failed',e?.message);
+        return send(res,200,{
+          configured:Boolean(process.env.GOOGLE_MAPS_API_KEY||process.env.GOOGLE_PLACES_API_KEY),
+          available:false,
+          openUrl:googleStreetViewOpenUrl(lat,lng)
+        },120);
+      }
+    }
+
+    if(action==='streetviewimage'){
+      const lat=num(req.query.lat,-90,90);
+      const lng=num(req.query.lng,-180,180);
+      if(lat===null||lng===null)return send(res,400,{error:'Invalid coordinates'},0);
+      try{
+        return await sendGoogleStreetViewImage(res,lat,lng);
+      }catch(e){
+        console.warn('Street View image lookup failed',e?.message);
+        res.status(502);
+        res.setHeader('Content-Type','text/plain; charset=utf-8');
+        return res.end('Street View image is temporarily unavailable');
+      }
+    }
+
     if(action==='webreviews'){
       const name=String(req.query.name||'').trim().slice(0,180);
       const address=String(req.query.address||'').trim().slice(0,220);
