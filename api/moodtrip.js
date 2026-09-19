@@ -493,73 +493,193 @@ function parseBingResults(html){
   return results;
 }
 
-async function searchBing(q,headers){
+async function fetchHtml(url,headers,timeout=6500){
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),timeout);
   try{
-    const r=await fetch('https://www.bing.com/search?count=12&setlang=en-IN&q='+encodeURIComponent(q),{
+    const r=await fetch(url,{
+      signal:controller.signal,
       headers:{
         ...headers,
         'Accept':'text/html,application/xhtml+xml',
         'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36'
       }
     });
-    if(!r.ok)return [];
-    return parseBingResults(await r.text());
-  }catch{return []}
+    if(!r.ok)throw new Error('HTML '+r.status);
+    return await r.text();
+  }finally{
+    clearTimeout(timer);
+  }
+}
+
+function preferredReviewUrl(url=''){
+  const u=url.toLowerCase();
+  return [
+    'wanderlog.com/place/details',
+    'zomato.com/',
+    'tripadvisor.',
+    'justdial.com/',
+    'restaurant-guru.',
+    'magicpin.in/',
+    'yelp.'
+  ].some(x=>u.includes(x));
+}
+
+function extractPreferredUrls(html=''){
+  const urls=new Set();
+  const decoded=decodeHtml(String(html).replace(/\\u0026/g,'&').replace(/\\\//g,'/'));
+
+  const abs=decoded.match(/https?:\/\/[^\s"'<>]+/g)||[];
+  abs.forEach(raw=>{
+    const cleaned=raw.replace(/[),.;]+$/,'');
+    if(preferredReviewUrl(cleaned))urls.add(cleaned);
+  });
+
+  const encodedPatterns=[
+    /[?&](?:q|url)=(https?%3A%2F%2F[^&"']+)/gi,
+    /uddg=(https?%3A%2F%2F[^&"']+)/gi
+  ];
+  for(const re of encodedPatterns){
+    let m;
+    while((m=re.exec(String(html)))){
+      try{
+        const u=decodeURIComponent(m[1]);
+        if(preferredReviewUrl(u))urls.add(u);
+      }catch{}
+    }
+  }
+
+  return [...urls];
+}
+
+async function discoverReviewUrls(name,address,headers){
+  const q='"'+[name,address].filter(Boolean).join(' ')+'" reviews';
+  const urls=new Set();
+
+  const searchUrls=[
+    'https://www.google.com/search?hl=en&num=10&q='+encodeURIComponent(q+' site:wanderlog.com OR site:zomato.com OR site:tripadvisor.in OR site:justdial.com'),
+    'https://www.bing.com/search?count=12&setlang=en-IN&q='+encodeURIComponent(q),
+    'https://html.duckduckgo.com/html/?q='+encodeURIComponent(q)
+  ];
+
+  const pages=await Promise.all(searchUrls.map(u=>fetchHtml(u,headers,5500).catch(()=>'')));
+  pages.forEach(html=>extractPreferredUrls(html).forEach(u=>urls.add(u)));
+
+  return [...urls].slice(0,8);
+}
+
+function safeJson(text){
+  try{return JSON.parse(text)}catch{return null}
+}
+
+function collectJsonLd(html=''){
+  const nodes=[];
+  const re=/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+  let m;
+  while((m=re.exec(html))){
+    const parsed=safeJson(decodeHtml(m[1]).replace(/\s+/g,' '))||safeJson(m[1]);
+    if(parsed)nodes.push(parsed);
+  }
+  return nodes;
+}
+
+function flattenJsonLd(value,out=[]){
+  if(!value)return out;
+  if(Array.isArray(value)){value.forEach(v=>flattenJsonLd(v,out));return out}
+  if(typeof value==='object'){
+    out.push(value);
+    if(Array.isArray(value['@graph']))flattenJsonLd(value['@graph'],out);
+  }
+  return out;
+}
+
+function metaContent(html,key){
+  const patterns=[
+    new RegExp('<meta[^>]+(?:name|property)=["\\']'+key+'["\\'][^>]+content=["\\']([^"\\']+)["\\']','i'),
+    new RegExp('<meta[^>]+content=["\\']([^"\\']+)["\\'][^>]+(?:name|property)=["\\']'+key+'["\\']','i')
+  ];
+  for(const re of patterns){
+    const m=html.match(re);
+    if(m)return decodeHtml(m[1]);
+  }
+  return '';
+}
+
+function reviewsFromJsonLd(nodes,url){
+  const items=[];
+  const flat=nodes.flatMap(n=>flattenJsonLd(n,[]));
+
+  for(const node of flat){
+    const businessName=node.name||node.itemReviewed?.name||'';
+    const agg=node.aggregateRating||node.itemReviewed?.aggregateRating||null;
+    const reviews=Array.isArray(node.review)?node.review:(node.review?[node.review]:[]);
+
+    for(const r of reviews){
+      const body=decodeHtml(r.reviewBody||r.description||'');
+      if(body.length<15)continue;
+      const rating=Number(r.reviewRating?.ratingValue||r.ratingValue||0)||null;
+      const author=typeof r.author==='string'?r.author:(r.author?.name||'Public reviewer');
+      items.push({
+        title:(author||'Public reviewer')+(rating?' · '+rating+'★':''),
+        snippet:body.slice(0,360),
+        source:sourceLabel(url),
+        url,
+        rating,
+        author,
+        reviewCount:agg?Number(agg.reviewCount||agg.ratingCount||0)||null:null,
+        sourceRating:agg?Number(agg.ratingValue||0)||null:null,
+        businessName
+      });
+      if(items.length>=4)return items;
+    }
+  }
+
+  return items;
+}
+
+async function reviewsFromPage(url,headers){
+  try{
+    const html=await fetchHtml(url,headers,6500);
+    const structured=reviewsFromJsonLd(collectJsonLd(html),url);
+    if(structured.length)return structured;
+
+    const desc=metaContent(html,'description')||metaContent(html,'og:description');
+    const title=metaContent(html,'og:title')||sourceLabel(url);
+    if(desc&&/review|rating|rated|stars?|google|tripadvisor/i.test(desc)){
+      return [{
+        title,
+        snippet:desc.slice(0,360),
+        source:sourceLabel(url),
+        url,
+        rating:null,
+        author:null,
+        reviewCount:null,
+        sourceRating:null,
+        businessName:title
+      }];
+    }
+  }catch{}
+  return [];
 }
 
 async function publicReviewSearch(name,address,lat,lng,headers){
-  const queries=[
-    '"'+[name,address].filter(Boolean).join(' ')+'" reviews',
-    '"'+name+'" '+address+'" Zomato Tripadvisor Wanderlog Justdial Restaurant Guru reviews'
-  ];
+  const urls=await discoverReviewUrls(name,address,headers);
+  if(!urls.length)return [];
 
-  const jobs=[];
-  for(const q of queries){
-    jobs.push(
-      fetch('https://html.duckduckgo.com/html/?q='+encodeURIComponent(q),{
-        headers:{
-          ...headers,
-          'Accept':'text/html,application/xhtml+xml',
-          'User-Agent':'Mozilla/5.0 (compatible; MoodTripReviewFinder/1.1)'
-        }
-      }).then(async r=>r.ok?parseDuckResults(await r.text()):[]).catch(()=>[])
-    );
-    jobs.push(searchBing(q,headers));
-  }
-
-  const groups=await Promise.all(jobs);
-  const preferred=[
-    'zomato','tripadvisor','wanderlog','justdial','restaurant-guru','magicpin',
-    'yelp','foursquare','mouthshut','facebook'
-  ];
-  const disallowed=['youtube','instagram','linkedin','wikipedia'];
+  const groups=await Promise.all(urls.slice(0,5).map(url=>reviewsFromPage(url,headers)));
   const firstToken=name.toLowerCase().split(/\s+/)[0]||'';
-
   const seen=new Set();
+
   const all=groups.flat().filter(item=>{
-    let host='';
-    try{host=new URL(item.url).hostname.toLowerCase()}catch{}
-    if(disallowed.some(x=>host.includes(x)))return false;
-    const key=item.url.split('#')[0];
+    const text=(item.title+' '+item.snippet+' '+(item.businessName||'')).toLowerCase();
+    if(firstToken&&!text.includes(firstToken))return false;
+    const key=(item.source+'|'+item.title+'|'+item.snippet.slice(0,80)).toLowerCase();
     if(seen.has(key))return false;
     seen.add(key);
-    return item.snippet.length>20;
+    return true;
   });
 
-  const ranked=all.map(item=>{
-    const host=item.url.toLowerCase();
-    const text=(item.title+' '+item.snippet).toLowerCase();
-    const preferredIndex=preferred.findIndex(x=>host.includes(x));
-    let score=preferredIndex>=0?120-preferredIndex*4:0;
-    if(text.includes('review'))score+=24;
-    if(text.includes('rating')||/\b[1-5]\.[0-9]\b/.test(text))score+=18;
-    if(firstToken&&text.includes(firstToken))score+=14;
-    if(address&&text.includes(address.toLowerCase().split(',')[0]))score+=10;
-    if(/google|tripadvisor|dining|customer|reviewer|stars|rated/i.test(item.snippet))score+=8;
-    return {...item,score};
-  }).filter(item=>item.score>=24).sort((a,b)=>b.score-a.score);
-
-  return ranked.slice(0,6).map(({score,...item})=>item);
+  return all.slice(0,6);
 }
 
 export default async function handler(req,res){
