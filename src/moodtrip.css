@@ -873,3 +873,10 @@ a{text-decoration:none}
 @media(prefers-reduced-motion:reduce){
   .mtReviewLoading i{animation:none}
 }
+
+
+/* preserve the same interactive AeroShards behavior as the portfolio hero */
+.mtHeroFx .aero-shards,
+.mtHeroFx canvas{
+  pointer-events:auto!important;
+}
