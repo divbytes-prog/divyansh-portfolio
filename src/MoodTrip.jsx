@@ -1153,20 +1153,30 @@ function App(){
 
           <section className="mtPublicReviews">
             <div className="mtPublicReviewTitle">
-              <div><span>PUBLIC WEB REVIEWS</span><h4>What people are saying elsewhere.</h4></div>
-              <b>{publicReviewState==='loading'?'SEARCHING…':publicReviews.length?publicReviews.length+' SOURCES':'LIVE SEARCH'}</b>
+              <div><span>PUBLIC REVIEWS</span><h4>What people are saying elsewhere.</h4></div>
+              <b>{publicReviewState==='loading'?'SEARCHING…':publicReviews.length?publicReviews.length+' REVIEWS':'LIVE SEARCH'}</b>
             </div>
 
             {publicReviewState==='loading'&&<div className="mtPublicReviewLoading"><i/><span>CHECKING PUBLIC REVIEW SOURCES…</span></div>}
 
-            {publicReviewState!=='loading'&&publicReviews.length>0&&<div className="mtPublicReviewList">
+            {publicReviewState!=='loading'&&publicReviews.length>0&&<>
+              <div className="mtPublicAggregate">
+                <strong>{publicReviews[0]?.sourceRating?Number(publicReviews[0].sourceRating).toFixed(1):'—'}</strong>
+                <div>
+                  <span>{publicReviews[0]?.sourceRating?'★':'☆'} PUBLIC RATING</span>
+                  <b>{publicReviews[0]?.reviewCount?Intl.NumberFormat().format(publicReviews[0].reviewCount)+' RATINGS':'PUBLIC REVIEW DATA'}</b>
+                  <small>via {publicReviews[0]?.source||'public source'} · matched to this selected place</small>
+                </div>
+              </div>
+              <div className="mtPublicReviewList">
               {publicReviews.map((r,i)=><article key={r.url+i}>
                 <div><span>{r.source}</span><b>0{Math.min(i+1,9)}</b></div>
                 <h5>{r.title}</h5>
                 <p>{r.snippet.length>280?r.snippet.slice(0,277)+'…':r.snippet}</p>
                 <a href={r.url} target="_blank" rel="noreferrer">READ ON {r.source} ↗</a>
               </article>)}
-            </div>}
+            </div>
+            </>}
 
             {publicReviewState!=='loading'&&!publicReviews.length&&<div className="mtPublicReviewEmpty">
               <span>NO PUBLIC REVIEW SNIPPETS FOUND</span>
