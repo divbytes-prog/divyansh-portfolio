@@ -26,37 +26,49 @@ const resumeProjects=[
     n:'01',
     title:'Real Estate ML Application',
     summary:'Full-stack ML application for real-estate price prediction with model comparison, analytics and recommendations.',
-    tech:'PYTHON · ML REGRESSION · STREAMLIT · AWS'
+    tech:'PYTHON · ML REGRESSION · STREAMLIT · AWS',
+    visual:'PREDICTION / MODEL COMPARISON',
+    fact:'Regression models + feature engineering + recommendations'
   },
   {
     n:'02',
     title:'India Data Visualization Dashboard',
     summary:'Interactive dashboard exploring 120+ demographic and socioeconomic parameters with geospatial filtering.',
-    tech:'STREAMLIT · PLOTLY · DATA VIZ'
+    tech:'STREAMLIT · PLOTLY · DATA VIZ',
+    visual:'PARAMETERS / GEO EXPLORATION',
+    fact:'120+ demographic and socioeconomic parameters'
   },
   {
     n:'03',
     title:'NLP Application Suite',
     summary:'Python desktop scripts for sentiment analysis and emoji prediction using custom text processing and rule-based classification.',
-    tech:'PYTHON · NLP · RULE-BASED SYSTEMS'
+    tech:'PYTHON · NLP · RULE-BASED SYSTEMS',
+    visual:'TEXT / SENTIMENT PIPELINE',
+    fact:'Sentiment analysis + emoji prediction'
   },
   {
     n:'04',
     title:'Startup Analytics Dashboard',
     summary:'Interactive startup-funding analytics for exploring funding patterns, activity and startup insights.',
-    tech:'STREAMLIT · ANALYTICS · DATA'
+    tech:'STREAMLIT · ANALYTICS · DATA',
+    visual:'FUNDING / TREND EXPLORATION',
+    fact:'Interactive funding-pattern analysis'
   },
   {
     n:'05',
     title:'Career Assistant',
     summary:'AI-powered career guidance platform with personalized roadmaps, skill recommendations, salary insights and an AI chatbot.',
-    tech:'REACT · TYPESCRIPT · TAILWIND · AI'
+    tech:'REACT · TYPESCRIPT · TAILWIND · AI',
+    visual:'ROADMAP / SOURCE NETWORK',
+    fact:'YouTube + GitHub + Udemy + LinkedIn integrations'
   },
   {
     n:'06',
     title:'MoodTrip',
     summary:'Mood-based place recommendation system using emotion detection, clustering and personalized ranking with real-world location data.',
-    tech:'TRANSFORMERS · K-MEANS · RANDOM FOREST · OPENTRIPMAP'
+    tech:'TRANSFORMERS · K-MEANS · RANDOM FOREST · OPENTRIPMAP',
+    visual:'MOOD / CLUSTER / RANK',
+    fact:'Emotion detection + clustering + personalized ranking'
   }
 ];
 
@@ -224,7 +236,7 @@ function RealtimeViewport({compact=false}){
 
   useEffect(()=>{
     if(compact||reduce)return;
-    const id=setInterval(()=>setActiveProject(v=>(v+1)%resumeProjects.length),5200);
+    const id=setInterval(()=>setActiveProject(v=>(v+1)%resumeProjects.length),6200);
     return()=>clearInterval(id);
   },[compact,reduce]);
 
@@ -233,13 +245,9 @@ function RealtimeViewport({compact=false}){
     const wrap=wrapRef.current;
     if(!canvas||!wrap)return;
     const ctx=canvas.getContext('2d');
-    let raf=0,visible=true,w=1,h=1,dpr=1,last=0;
-    const pointer={x:.68,y:.42,active:false};
-    const seeds=Array.from({length:compact?18:34},(_,i)=>({
-      a:(i*2.399963)%6.28,
-      r:.14+((i*37)%100)/260,
-      s:.35+((i*17)%80)/100
-    }));
+    let raf=0,visible=true,w=1,h=1,dpr=1;
+    const pointer={x:.66,y:.46,active:false};
+    const accent='#c28d76',sage='#8d927d',paper='#efe4da',ink='#211b18';
 
     const resize=()=>{
       const rect=wrap.getBoundingClientRect();
@@ -250,63 +258,189 @@ function RealtimeViewport({compact=false}){
       ctx.setTransform(dpr,0,0,dpr,0,0);
     };
 
-    const draw=t=>{
-      const time=(t||0)*.001;
-      ctx.clearRect(0,0,w,h);
-      ctx.fillStyle=compact?'#f5eee7':'#211b18';
-      ctx.fillRect(0,0,w,h);
-
-      ctx.strokeStyle=compact?'rgba(102,83,72,.12)':'rgba(242,238,231,.10)';
+    const grid=()=>{
+      ctx.strokeStyle=compact?'rgba(102,83,72,.11)':'rgba(242,238,231,.085)';
       ctx.lineWidth=1;
       const gap=compact?36:54;
       for(let x=gap;x<w;x+=gap){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke()}
       for(let y=gap;y<h;y+=gap){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke()}
+    };
 
-      const cx=w*(pointer.active?pointer.x:.64);
-      const cy=h*(pointer.active?pointer.y:.48);
+    const label=(text,x,y,align='left',color='rgba(239,228,218,.52)')=>{
+      ctx.font='500 9px "IBM Plex Mono", monospace';
+      ctx.textAlign=align;ctx.fillStyle=color;ctx.fillText(text,x,y);
+    };
+
+    const node=(x,y,r=5,color=accent)=>{
+      ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fillStyle=color;ctx.fill();
+      ctx.beginPath();ctx.arc(x,y,r+10,0,Math.PI*2);ctx.strokeStyle=color+'44';ctx.stroke();
+    };
+
+    const drawCompact=time=>{
+      const cx=w*(pointer.active?pointer.x:.64),cy=h*(pointer.active?pointer.y:.48);
+      const count=18;
+      for(let i=0;i<count;i++){
+        const a=i*2.399963+time*.15;
+        const r=.12+((i*37)%100)/290;
+        const x=w*(.5+Math.cos(a)*r),y=h*(.5+Math.sin(a*1.13)*r*.7);
+        ctx.beginPath();ctx.arc(x,y,2.2+(i%3)*.3,0,Math.PI*2);
+        ctx.fillStyle=i%5===0?sage:'#9a6654';ctx.fill();
+      }
+      node(cx,cy,5,'#9a6654');
+    };
+
+    const drawRealEstate=time=>{
+      const left=w*.08,right=w*.68,top=h*.17,bottom=h*.78;
+      ctx.strokeStyle='rgba(239,228,218,.22)';
+      ctx.beginPath();ctx.moveTo(left,bottom);ctx.lineTo(right,bottom);ctx.lineTo(right,top);ctx.stroke();
+
+      const pts=Array.from({length:22},(_,i)=>{
+        const x=left+(right-left)*(i/21);
+        const base=bottom-(bottom-top)*(i/21)*.78;
+        const y=base+Math.sin(i*1.71+time*.65)*22+(i%3-1)*9;
+        return{x,y};
+      });
+      pts.forEach((p,i)=>node(p.x,p.y,2.6,i%6===0?sage:accent));
 
       ctx.beginPath();
-      for(let x=0;x<=w;x+=8){
-        const y=h*.54+Math.sin(x*.014+time*1.15)*h*.105+Math.sin(x*.032-time*.62)*h*.035;
-        x===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+      pts.forEach((p,i)=>{
+        const x=p.x;
+        const y=bottom-(bottom-top)*(i/21)*.76+Math.sin(i*.43+time*.35)*4;
+        i?ctx.lineTo(x,y):ctx.moveTo(x,y);
+      });
+      ctx.strokeStyle=paper;ctx.lineWidth=2;ctx.stroke();
+
+      label('ACTUAL',left,bottom+24);
+      label('PREDICTED',right-6,top-10,'right');
+      label('MODEL COMPARISON',left,top-10,'left',accent);
+    };
+
+    const drawIndia=time=>{
+      const cols=8,rows=5;
+      for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
+        const i=r*cols+c;
+        const x=w*.08+c*w*.065;
+        const y=h*.2+r*h*.105;
+        const size=3+((i*13)%9)+Math.sin(time+i)*1.2;
+        ctx.beginPath();ctx.arc(x,y,Math.max(2,size*.48),0,Math.PI*2);
+        ctx.fillStyle=i%7===0?sage:accent;ctx.globalAlpha=.45+((i*17)%45)/100;ctx.fill();ctx.globalAlpha=1;
       }
-      ctx.strokeStyle=compact?'rgba(154,102,84,.72)':'rgba(202,154,132,.72)';
-      ctx.lineWidth=compact?1.4:2;
-      ctx.stroke();
+      const bx=w*.62,base=h*.73;
+      for(let i=0;i<7;i++){
+        const bh=h*(.12+((i*19)%45)/100);
+        ctx.fillStyle=i%3===0?sage:accent;
+        ctx.fillRect(bx+i*22,base-bh,10,bh);
+      }
+      label('120+ PARAMETERS',w*.08,h*.16,'left',accent);
+      label('DYNAMIC FILTERS',bx,base+22);
+      label('GEOSPATIAL / DEMOGRAPHIC',bx,h*.16,'left',sage);
+    };
 
-      seeds.forEach((p,i)=>{
-        const ang=p.a+time*(compact?.18:.12)*p.s;
-        const drift=Math.sin(time*.8+i)*.025;
-        let x=w*(.5+Math.cos(ang)*(p.r+drift));
-        let y=h*(.5+Math.sin(ang*1.13)*(p.r*.72));
-        const dx=x-cx,dy=y-cy,dist=Math.hypot(dx,dy);
-        if(pointer.active&&dist<140){
-          const push=(140-dist)/140;
-          x+=dx/(dist||1)*push*18;
-          y+=dy/(dist||1)*push*18;
-        }
-        const radius=compact?2.1:2.6+(i%3)*.45;
-        ctx.beginPath();ctx.arc(x,y,radius,0,Math.PI*2);
-        ctx.fillStyle=i%5===0?'#8d927d':(compact?'#9a6654':'#c28d76');
-        ctx.fill();
-
-        if(i%4===0){
-          ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(cx,cy);
-          ctx.strokeStyle=compact?'rgba(154,102,84,.08)':'rgba(194,141,118,.08)';
-          ctx.lineWidth=1;ctx.stroke();
+    const drawNlp=time=>{
+      const words=['TEXT','TOKEN','SENTIMENT','EMOJI'];
+      const xs=[w*.08,w*.28,w*.50,w*.72];
+      xs.forEach((x,i)=>{
+        const y=h*.42+Math.sin(time*1.2+i)*8;
+        ctx.fillStyle=i===2?sage:accent;
+        ctx.fillRect(x-28,y-14,56,28);
+        label(words[i],x,y+4,'center','#211b18');
+        if(i<xs.length-1){
+          ctx.beginPath();ctx.moveTo(x+30,y);ctx.lineTo(xs[i+1]-34,h*.42+Math.sin(time*1.2+i+1)*8);
+          ctx.strokeStyle='rgba(239,228,218,.34)';ctx.stroke();
         }
       });
+      const gaugeX=w*.67,gaugeY=h*.68;
+      ctx.beginPath();ctx.arc(gaugeX,gaugeY,46,Math.PI,Math.PI*2);ctx.strokeStyle='rgba(239,228,218,.22)';ctx.lineWidth=8;ctx.stroke();
+      ctx.beginPath();ctx.arc(gaugeX,gaugeY,46,Math.PI,Math.PI*(1.35+.12*Math.sin(time)));ctx.strokeStyle=accent;ctx.stroke();
+      label('RULE-BASED CLASSIFICATION',w*.08,h*.19,'left',accent);
+      label('SENTIMENT',gaugeX,gaugeY+24,'center');
+    };
 
-      ctx.beginPath();ctx.arc(cx,cy,compact?5:7,0,Math.PI*2);
-      ctx.fillStyle=compact?'#9a6654':'#efe4da';ctx.fill();
-      ctx.beginPath();ctx.arc(cx,cy,compact?18:26,0,Math.PI*2);
-      ctx.strokeStyle=compact?'rgba(154,102,84,.28)':'rgba(239,228,218,.24)';
-      ctx.stroke();
+    const drawStartup=time=>{
+      const left=w*.08,right=w*.70,base=h*.72;
+      const bars=10;
+      for(let i=0;i<bars;i++){
+        const x=left+i*((right-left)/(bars-1));
+        const bh=h*(.10+((i*23)%42)/100)+Math.sin(time*.8+i)*7;
+        ctx.fillStyle=i%4===0?sage:accent;
+        ctx.fillRect(x,base-bh,11,bh);
+      }
+      ctx.beginPath();
+      for(let x=left;x<=right;x+=10){
+        const p=(x-left)/(right-left);
+        const y=h*.52-Math.sin(p*7+time*.55)*h*.09-p*h*.11;
+        x===left?ctx.moveTo(x,y):ctx.lineTo(x,y);
+      }
+      ctx.strokeStyle=paper;ctx.lineWidth=2;ctx.stroke();
+      label('FUNDING PATTERNS',left,h*.17,'left',accent);
+      label('ACTIVITY / INSIGHTS',right,h*.17,'right',sage);
+    };
+
+    const drawCareer=time=>{
+      const center={x:w*.46,y:h*.48};
+      const sources=[
+        ['YOUTUBE',w*.12,h*.24],['GITHUB',w*.13,h*.69],['UDEMY',w*.72,h*.24],['LINKEDIN',w*.76,h*.67]
+      ];
+      sources.forEach(([name,x,y],i)=>{
+        ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(center.x,center.y);ctx.strokeStyle='rgba(239,228,218,.18)';ctx.stroke();
+        node(x,y,4,i%2?sage:accent);label(name,x,y-16,'center');
+      });
+      node(center.x,center.y,7,paper);
+      label('CAREER ROADMAP',center.x,center.y+28,'center',accent);
+      const steps=['SKILLS','SALARY','LEARNING','JOBS'];
+      steps.forEach((name,i)=>{
+        const x=w*.36+i*w*.11,y=h*.79+Math.sin(time+i)*3;
+        ctx.fillStyle=i%2?sage:accent;ctx.fillRect(x-22,y-12,44,24);
+        label(name,x,y+3,'center','#211b18');
+      });
+      label('REAL-TIME SOURCE INTEGRATION',w*.08,h*.16,'left',accent);
+    };
+
+    const drawMoodTrip=time=>{
+      const centers=[
+        {x:w*.18,y:h*.33,c:accent},{x:w*.42,y:h*.48,c:sage},{x:w*.63,y:h*.30,c:'#d0aa96'}
+      ];
+      centers.forEach((c,idx)=>{
+        for(let i=0;i<10;i++){
+          const a=i*.92+time*.18*(idx+1);
+          const rr=18+(i%4)*9;
+          const x=c.x+Math.cos(a)*rr,y=c.y+Math.sin(a*1.1)*rr;
+          ctx.beginPath();ctx.arc(x,y,3,0,Math.PI*2);ctx.fillStyle=c.c;ctx.globalAlpha=.8;ctx.fill();ctx.globalAlpha=1;
+        }
+        ctx.beginPath();ctx.arc(c.x,c.y,52,0,Math.PI*2);ctx.strokeStyle=c.c+'44';ctx.stroke();
+      });
+      const rankX=w*.72,rankY=h*.52;
+      for(let i=0;i<4;i++){
+        ctx.fillStyle=i===0?accent:'rgba(239,228,218,.18)';
+        ctx.fillRect(rankX,rankY+i*28,90-i*12,10);
+      }
+      label('EMOTION CLUSTERS',w*.08,h*.15,'left',accent);
+      label('PLACE RANKING',rankX,rankY-18,'left',sage);
+      label('MOOD → VIBE → PLACE',w*.43,h*.84,'center');
+    };
+
+    const draw=t=>{
+      const time=(t||0)*.001;
+      ctx.clearRect(0,0,w,h);
+      ctx.fillStyle=compact?'#f5eee7':ink;
+      ctx.fillRect(0,0,w,h);
+      grid();
+
+      if(compact) drawCompact(time);
+      else {
+        [drawRealEstate,drawIndia,drawNlp,drawStartup,drawCareer,drawMoodTrip][activeProject](time);
+        if(pointer.active){
+          const px=pointer.x*w,py=pointer.y*h;
+          ctx.beginPath();ctx.arc(px,py,28,0,Math.PI*2);
+          ctx.strokeStyle='rgba(239,228,218,.2)';ctx.stroke();
+          ctx.beginPath();ctx.arc(px,py,3,0,Math.PI*2);ctx.fillStyle=paper;ctx.fill();
+        }
+      }
 
       if(!reduce&&visible)raf=requestAnimationFrame(draw);
     };
 
-    const enter=e=>{
+    const move=e=>{
       const r=wrap.getBoundingClientRect();
       pointer.x=(e.clientX-r.left)/r.width;
       pointer.y=(e.clientY-r.top)/r.height;
@@ -314,31 +448,31 @@ function RealtimeViewport({compact=false}){
     };
     const leave=()=>{pointer.active=false};
 
-    const ro=new ResizeObserver(resize);
-    ro.observe(wrap);
+    const ro=new ResizeObserver(resize);ro.observe(wrap);
     const io=new IntersectionObserver(([entry])=>{
       const was=visible;visible=entry.isIntersecting;
       if(visible&&!was&&!reduce){cancelAnimationFrame(raf);raf=requestAnimationFrame(draw)}
     },{threshold:.05});
     io.observe(wrap);
-    wrap.addEventListener('pointermove',enter,{passive:true});
+    wrap.addEventListener('pointermove',move,{passive:true});
     wrap.addEventListener('pointerleave',leave);
 
     resize();
-    if(reduce)draw(0);else raf=requestAnimationFrame(draw);
+    reduce?draw(0):raf=requestAnimationFrame(draw);
 
     return()=>{
       cancelAnimationFrame(raf);ro.disconnect();io.disconnect();
-      wrap.removeEventListener('pointermove',enter);
+      wrap.removeEventListener('pointermove',move);
       wrap.removeEventListener('pointerleave',leave);
     };
-  },[compact,reduce]);
+  },[compact,reduce,activeProject]);
 
   const active=resumeProjects[activeProject];
-  return <div ref={wrapRef} className={compact?'renderViewport compact':'renderViewport'} role="group" aria-label={compact?'Live generative visualization':'Interactive resume project stream'}>
+
+  return <div ref={wrapRef} className={compact?'renderViewport compact':'renderViewport'} role="group" aria-label={compact?'Live generative visualization':'Interactive project systems view'}>
     <canvas ref={canvasRef} aria-hidden="true"/>
     {!compact&&<>
-      <div className="renderHud top"><span><i/>RESUME PROJECT STREAM</span><b>LIVE / INTERACTIVE</b></div>
+      <div className="renderHud top"><span><i/>PROJECT SYSTEMS VIEW</span><b>{active.visual}</b></div>
 
       <AnimatePresence mode="wait">
         <motion.div
@@ -353,6 +487,7 @@ function RealtimeViewport({compact=false}){
           <h3>{active.title}</h3>
           <p>{active.summary}</p>
           <b>{active.tech}</b>
+          <small>{active.fact}</small>
         </motion.div>
       </AnimatePresence>
 
@@ -366,7 +501,7 @@ function RealtimeViewport({compact=false}){
         ><span>{project.n}</span><em>{project.title}</em></button>)}
       </div>
 
-      <div className="renderHud bottom"><span>PROJECT DATA</span><b>RESUME / 2026</b><span>CANVAS</span><b>ACTIVE</b></div>
+      <div className="renderHud bottom"><span>VISUAL MODEL</span><b>{active.visual}</b><span>SOURCE</span><b>RESUME</b></div>
     </>}
   </div>;
 }
@@ -557,7 +692,7 @@ function App(){
         <Reveal className="renderFeature">
           <div className="renderFeatureCopy">
             <span>LIVE / 03A</span>
-            <p>Resume projects, rendered as a live interactive stream.</p>
+            <p>Each project gets a live visual model that reflects what the project actually does.</p>
           </div>
           <RealtimeViewport/>
         </Reveal>
