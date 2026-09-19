@@ -104,7 +104,6 @@ const KEYWORD_FALLBACK={
 };
 
 let emotionPipelinePromise;
-let rfPromise;
 
 const clamp=(n,min=0,max=1)=>Math.max(min,Math.min(max,n));
 const dot=(a,b)=>a.reduce((s,v,i)=>s+v*(b[i]||0),0);
@@ -219,49 +218,6 @@ async function deepEmotion(text){
     console.warn('Mood transformer fallback',e);
     return null;
   }
-}
-
-function trainingSet(){
-  const X=[],y=[];
-  const moods=Object.values(MOOD_VECTORS);
-  const cats=Object.values(CATEGORY_FEATURES);
-  moods.forEach((mv,mi)=>{
-    cats.forEach((cv,ci)=>{
-      [0.05,.18,.38,.62,.9].forEach((d,di)=>{
-        [.62,.78,.92].forEach((r,ri)=>{
-          ['quiet','balanced','lively'].forEach((crowd,croi)=>{
-            const moodFit=(cosine(mv,cv)+1)/2;
-            const estimated=['quiet','balanced','lively'][(ci+mi)%3];
-            const cFit=crowdFit(crowd,estimated);
-            const target=100*clamp(.54*moodFit+.22*(1-d)+.14*r+.1*cFit);
-            X.push([...mv,...cv,d,r,croi/2]);
-            y.push(target+(((mi+ci+di+ri)%5)-2)*.6);
-          });
-        });
-      });
-    });
-  });
-  return {X,y};
-}
-
-async function getForest(){
-  if(!rfPromise){
-    rfPromise=import('ml-random-forest').then(mod=>{
-      const RF=mod.RandomForestRegression||mod.default?.RandomForestRegression;
-      if(!RF)throw new Error('RandomForestRegression export not found');
-      const {X,y}=trainingSet();
-      const model=new RF({
-        nEstimators:36,
-        maxFeatures:.8,
-        replacement:true,
-        seed:42,
-        treeOptions:{maxDepth:12,minNumSamples:3}
-      });
-      model.train(X,y);
-      return model;
-    });
-  }
-  return rfPromise;
 }
 
 function kMeans(items,k=4){
