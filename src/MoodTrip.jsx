@@ -1236,3 +1236,5 @@ function App(){
 }
 
 export default App;
+
+// MoodTrip public reviews: selected-place sync
