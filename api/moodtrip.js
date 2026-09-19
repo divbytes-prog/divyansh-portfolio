@@ -740,18 +740,16 @@ async function wanderlogPlaceSearch(name,address,lat,lng,headers){
     6500
   );
   const rows=Array.isArray(data?.data)?data.data:[];
-  if(!rows.length)return null;
+  if(!rows.length)return [];
 
-  const ranked=rows.map(row=>{
+  return rows.map(row=>{
     const main=row.structured_formatting?.main_text||row.description||'';
     const secondary=row.structured_formatting?.secondary_text||row.secondaryText||'';
     let score=textSimilarity(main,name)*100;
     score+=textSimilarity(secondary,address)*30;
     if(String(main).toLowerCase()===String(name).toLowerCase())score+=30;
     return {row,score};
-  }).sort((a,b)=>b.score-a.score);
-
-  return ranked[0]?.row||null;
+  }).sort((a,b)=>b.score-a.score).slice(0,5);
 }
 
 function deepValues(value,keyMatcher,out=[]){
@@ -817,6 +815,12 @@ function reviewSource(obj){
   return 'Wanderlog';
 }
 
+function shortReviewExcerpt(text,maxWords=7){
+  const words=String(text||'').trim().split(/\s+/).filter(Boolean);
+  if(words.length<=maxWords)return words.join(' ');
+  return words.slice(0,maxWords).join(' ')+'…';
+}
+
 function normalizeReviewObject(obj,placeName){
   if(!obj||typeof obj!=='object')return null;
   const text=reviewText(obj);
@@ -826,7 +830,7 @@ function normalizeReviewObject(obj,placeName){
   const source=String(reviewSource(obj)||'Wanderlog');
   return {
     title:author+(rating?' · '+Number(rating).toFixed(1)+'★':''),
-    snippet:text.slice(0,360),
+    snippet:shortReviewExcerpt(text,7),
     source:source.toUpperCase(),
     url:'https://wanderlog.com/',
     rating,
@@ -874,29 +878,71 @@ function extractWanderlogReviewData(payload,placeName){
 
 async function wanderlogReviews(name,address,lat,lng,headers){
   try{
-    const match=await wanderlogPlaceSearch(name,address,lat,lng,headers);
-    const placeId=match?.place_id;
-    if(!placeId)return null;
+    const candidates=await wanderlogPlaceSearch(name,address,lat,lng,headers);
+    if(!candidates.length)return null;
 
+    const inspected=await Promise.all(candidates.map(async candidate=>{
+      const placeId=candidate.row?.place_id;
+      if(!placeId)return null;
+      try{
+        const detail=await wanderlogJson(
+          'placesAPI/getPlaceDetailsAndCardData',
+          {placeId,language:'en'},
+          headers,
+          6000
+        );
+        const d=detail?.data?.details||{};
+        const point={
+          lat:Number(d?.geometry?.location?.lat),
+          lng:Number(d?.geometry?.location?.lng)
+        };
+        const hasPoint=Number.isFinite(point.lat)&&Number.isFinite(point.lng);
+        const distance=hasPoint&&Number.isFinite(lat)&&Number.isFinite(lng)
+          ?haversineKm({lat,lng},point)
+          :999;
+        const main=d.name||candidate.row.structured_formatting?.main_text||'';
+        const detailAddress=d.formatted_address||candidate.row.structured_formatting?.secondary_text||'';
+        const score=
+          textSimilarity(main,name)*120+
+          textSimilarity(detailAddress,address)*25+
+          Math.max(0,80-distance*40);
+        return {candidate,detail,placeId,distance,score};
+      }catch{
+        return {
+          candidate,
+          detail:null,
+          placeId,
+          distance:999,
+          score:candidate.score||0
+        };
+      }
+    }));
+
+    const matched=inspected.filter(Boolean).sort((a,b)=>b.score-a.score)[0];
+    if(!matched?.placeId)return null;
+
+    const placeId=matched.placeId;
     const calls=[
+      Promise.resolve(matched.detail?{success:true,data:{details:matched.detail}}:null),
       wanderlogJson('placesAPI/getPlaceDetails/v2',{placeId,language:'en'},headers,6500),
-      wanderlogJson('placesAPI/getPlaceDetailsAndCardData',{placeId,language:'en'},headers,6500),
       wanderlogJson('places/metadata',{placeIds:placeId,getDetails:'true'},headers,6500),
       wanderlogJson('places/card',{placeIds:placeId},headers,6500)
     ];
 
     const settled=await Promise.allSettled(calls);
-    const payloads=settled.filter(x=>x.status==='fulfilled').map(x=>x.value);
+    const payloads=settled
+      .filter(x=>x.status==='fulfilled'&&x.value)
+      .map(x=>x.value);
     if(!payloads.length)return null;
 
     const combined=extractWanderlogReviewData(payloads,name);
     const sourceUrl='https://wanderlog.com/';
-    const items=[...combined.reviews];
+    const items=[...combined.reviews].slice(0,3);
 
     if(!items.length&&combined.summary){
       items.push({
         title:(combined.rating?combined.rating.toFixed(1)+'★ · ':'')+'Wanderlog review summary',
-        snippet:combined.summary.slice(0,360),
+        snippet:shortReviewExcerpt(combined.summary,18),
         source:'WANDERLOG',
         url:sourceUrl,
         rating:combined.rating,
@@ -909,15 +955,17 @@ async function wanderlogReviews(name,address,lat,lng,headers){
       items.forEach(item=>{
         item.reviewCount=combined.reviewCount;
         item.sourceRating=combined.rating;
+        item.matchDistanceKm=matched.distance<999?matched.distance:null;
       });
     }
 
     return {
-      items:items.slice(0,6),
+      items,
       placeId,
-      description:match.description||'',
+      description:matched.candidate?.row?.description||'',
       rating:combined.rating,
-      reviewCount:combined.reviewCount
+      reviewCount:combined.reviewCount,
+      matchDistanceKm:matched.distance<999?matched.distance:null
     };
   }catch(e){
     console.warn('Wanderlog review lookup failed',e?.message);
