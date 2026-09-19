@@ -1338,13 +1338,13 @@ function App(){
             </div>
             </>}
 
-            {publicReviewState==='ready'&&!publicReviews.length&&<div className="mtPublicReviewEmpty">
-              <span>NO EXTERNAL EXCERPT EXPOSED FOR THIS EXACT PLACE</span>
-              <p>MoodTrip could not verify an individual public excerpt for this exact branch. Use the Google button below for the selected place rather than showing a review from a different branch.</p>
+            {publicReviewState==='ready'&&!publicReviews.length&&<div className="mtPublicReviewEmpty compact">
+              <span>EXACT-BRANCH CHECK COMPLETE</span>
+              <p>No verified public excerpt was exposed for this branch, so MoodTrip is intentionally not borrowing a review from another location. The exact Google link remains below.</p>
             </div>}
-            {publicReviewState==='error'&&<div className="mtPublicReviewEmpty error">
-              <span>PUBLIC REVIEW LOOKUP TIMED OUT</span>
-              <p>The external review source did not answer in time. Your selected place is unchanged; Google Reviews below still opens that exact place.</p>
+            {publicReviewState==='error'&&<div className="mtPublicReviewEmpty compact error">
+              <span>PUBLIC REVIEW SOURCE SLOW</span>
+              <p>External review lookup did not answer in time. The selected place and its exact Google review link are unchanged.</p>
             </div>}
           </section>
 
