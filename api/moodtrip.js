@@ -426,6 +426,102 @@ async function nearestBuildingFootprint(lat,lng,headers){
   };
 }
 
+
+function decodeHtml(input=''){
+  return String(input)
+    .replace(/<[^>]*>/g,' ')
+    .replace(/&amp;/g,'&')
+    .replace(/&quot;/g,'"')
+    .replace(/&#x27;|&#39;/g,"'")
+    .replace(/&lt;/g,'<')
+    .replace(/&gt;/g,'>')
+    .replace(/&nbsp;/g,' ')
+    .replace(/&#(\d+);/g,(_,n)=>String.fromCharCode(Number(n)))
+    .replace(/\s+/g,' ')
+    .trim();
+}
+
+function directDuckUrl(href=''){
+  try{
+    const raw=href.startsWith('//')?'https:'+href:href;
+    const u=new URL(raw,'https://duckduckgo.com');
+    const redirected=u.searchParams.get('uddg');
+    return redirected?decodeURIComponent(redirected):u.href;
+  }catch{
+    return href;
+  }
+}
+
+function sourceLabel(url=''){
+  try{
+    return new URL(url).hostname.replace(/^www\./,'').split('.').slice(0,-1).join('.').toUpperCase()||'WEB';
+  }catch{return 'WEB'}
+}
+
+function parseDuckResults(html){
+  const results=[];
+  const blocks=String(html).split(/<div[^>]+class="[^"]*result[^"]*"[^>]*>/i).slice(1);
+  for(const block of blocks){
+    const titleMatch=block.match(/<a[^>]+class="[^"]*result__a[^"]*"[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/i)
+      ||block.match(/<a[^>]+href="([^"]+)"[^>]+class="[^"]*result__a[^"]*"[^>]*>([\s\S]*?)<\/a>/i);
+    const snippetMatch=block.match(/<(?:a|div)[^>]+class="[^"]*result__snippet[^"]*"[^>]*>([\s\S]*?)<\/(?:a|div)>/i);
+    if(!titleMatch)continue;
+    const url=directDuckUrl(titleMatch[1]);
+    const title=decodeHtml(titleMatch[2]);
+    const snippet=decodeHtml(snippetMatch?.[1]||'');
+    if(!url||!title)continue;
+    results.push({title,url,snippet,source:sourceLabel(url)});
+    if(results.length>=12)break;
+  }
+  return results;
+}
+
+async function publicReviewSearch(name,address,lat,lng,headers){
+  const locationBits=[address,Number.isFinite(lat)&&Number.isFinite(lng)?(lat.toFixed(5)+','+lng.toFixed(5)):''].filter(Boolean).join(' ');
+  const queries=[
+    '"'+name+'" '+locationBits+'" reviews rating',
+    '"'+name+'" '+address+'" review Justdial Tripadvisor Restaurant Guru Magicpin'
+  ];
+
+  const jobs=queries.map(q=>fetch('https://html.duckduckgo.com/html/?q='+encodeURIComponent(q),{
+    headers:{
+      ...headers,
+      'Accept':'text/html,application/xhtml+xml',
+      'User-Agent':'Mozilla/5.0 (compatible; MoodTripReviewFinder/1.0)'
+    }
+  }).then(async r=>{
+    if(!r.ok)throw new Error('Search '+r.status);
+    return parseDuckResults(await r.text());
+  }).catch(()=>[]));
+
+  const groups=await Promise.all(jobs);
+  const preferred=[
+    'justdial','tripadvisor','restaurant-guru','zomato','magicpin','yelp',
+    'foursquare','mouthshut','facebook','wanderlog'
+  ];
+
+  const seen=new Set();
+  const all=groups.flat().filter(item=>{
+    const key=item.url.split('#')[0];
+    if(seen.has(key))return false;
+    seen.add(key);
+    return item.snippet.length>20;
+  });
+
+  const ranked=all.map(item=>{
+    const host=item.url.toLowerCase();
+    const text=(item.title+' '+item.snippet).toLowerCase();
+    const preferredIndex=preferred.findIndex(x=>host.includes(x));
+    let score=preferredIndex>=0?80-preferredIndex*3:0;
+    if(text.includes('review'))score+=18;
+    if(text.includes('rating')||/\b[1-5]\.[0-9]\b/.test(text))score+=12;
+    if(text.includes(name.toLowerCase().split(' ')[0]))score+=8;
+    return {...item,score};
+  }).sort((a,b)=>b.score-a.score);
+
+  return ranked.slice(0,6).map(({score,...item})=>item);
+}
+
 export default async function handler(req,res){
   if(req.method!=='GET')return send(res,405,{error:'Method not allowed'},0);
 
@@ -437,6 +533,21 @@ export default async function handler(req,res){
   };
 
   try{
+    if(action==='webreviews'){
+      const name=String(req.query.name||'').trim().slice(0,180);
+      const address=String(req.query.address||'').trim().slice(0,220);
+      const lat=num(req.query.lat,-90,90);
+      const lng=num(req.query.lng,-180,180);
+      if(!name)return send(res,400,{error:'Place name is required'},0);
+      try{
+        const items=await publicReviewSearch(name,address,lat,lng,headers);
+        return send(res,200,{items,source:'public-web-search'},120);
+      }catch(e){
+        console.warn('Public review search failed',e?.message);
+        return send(res,200,{items:[],source:'public-web-search'},30);
+      }
+    }
+
     if(action==='footprint'){
       const lat=num(req.query.lat,-90,90);
       const lng=num(req.query.lng,-180,180);
