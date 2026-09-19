@@ -1330,3 +1330,114 @@ a:focus-visible,button:focus-visible{outline:2px solid var(--clay);outline-offse
     font-size:7px;
   }
 }
+
+
+/* editorial profile portrait */
+.profileVisualColumn{
+  display:grid;
+  gap:34px;
+  align-content:start;
+}
+.profilePortrait{
+  position:relative;
+  margin:0 0 4px auto;
+  width:min(100%,560px);
+  aspect-ratio:815/600;
+  isolation:isolate;
+}
+.profilePortrait img{
+  position:relative;
+  z-index:2;
+  display:block;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  object-position:center;
+  border:1px solid #b9aca2;
+  filter:saturate(.9) contrast(1.02);
+}
+.portraitOffset{
+  position:absolute;
+  z-index:1;
+  left:-18px;
+  top:18px;
+  width:100%;
+  height:100%;
+  background:var(--clay);
+  opacity:.16;
+}
+.profilePortrait:after{
+  content:'04 / PROFILE';
+  position:absolute;
+  z-index:3;
+  right:-22px;
+  top:24px;
+  writing-mode:vertical-rl;
+  font:500 8px 'IBM Plex Mono';
+  letter-spacing:.16em;
+  color:#6d5f57;
+}
+.profilePortrait figcaption{
+  position:absolute;
+  z-index:4;
+  left:18px;
+  right:18px;
+  bottom:16px;
+  display:flex;
+  align-items:end;
+  justify-content:space-between;
+  gap:18px;
+  padding-top:10px;
+  border-top:1px solid rgba(255,255,255,.55);
+  color:#fff;
+  text-shadow:0 1px 12px rgba(0,0,0,.28);
+}
+.profilePortrait figcaption span{
+  font:500 8px 'IBM Plex Mono';
+  letter-spacing:.12em;
+}
+.profilePortrait figcaption b{
+  font:500 10px 'IBM Plex Mono';
+  letter-spacing:.06em;
+}
+@media(max-width:1000px){
+  .profileGrid{
+    gap:7vw;
+  }
+  .profilePortrait{
+    width:min(100%,500px);
+  }
+}
+@media(max-width:880px){
+  .profileGrid{
+    grid-template-columns:1fr;
+    gap:42px;
+  }
+  .profileVisualColumn{
+    gap:28px;
+  }
+  .profilePortrait{
+    width:min(92%,620px);
+    margin-left:0;
+    margin-right:auto;
+  }
+}
+@media(max-width:600px){
+  .profilePortrait{
+    width:calc(100% - 10px);
+  }
+  .portraitOffset{
+    left:-10px;
+    top:10px;
+  }
+  .profilePortrait:after{
+    right:-12px;
+    top:16px;
+    font-size:7px;
+  }
+  .profilePortrait figcaption{
+    left:12px;
+    right:12px;
+    bottom:11px;
+  }
+}
