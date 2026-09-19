@@ -1019,3 +1019,189 @@ a{text-decoration:none}
     height:190px;
   }
 }
+
+
+/* MoodTrip first-party reviews */
+.mtCommunityRating{
+  display:grid;
+  grid-template-columns:auto 1fr;
+  gap:22px;
+  align-items:center;
+  padding:26px 0;
+  border-bottom:1px solid var(--line);
+}
+.mtCommunityRating>div{
+  display:flex;
+  align-items:flex-end;
+  gap:8px;
+}
+.mtCommunityRating strong{
+  font:500 72px/.85 'Fraunces';
+  color:var(--clay-deep);
+}
+.mtCommunityRating>div span{
+  font-size:22px;
+  color:#a87838;
+  transform:translateY(-4px);
+}
+.mtCommunityRating p{
+  margin:0;
+  font-size:13px;
+}
+.mtCommunityRating p b{
+  font-size:18px;
+}
+.mtCommunityRating p small{
+  display:block;
+  margin-top:5px;
+  font:500 8px 'IBM Plex Mono';
+  color:#7f756d;
+}
+.mtReviewComposer{
+  padding:24px 0;
+  border-bottom:1px solid var(--line);
+}
+.mtComposerTop{
+  display:flex;
+  justify-content:space-between;
+  gap:16px;
+  margin-bottom:12px;
+  font:500 8px 'IBM Plex Mono';
+  letter-spacing:.06em;
+  color:#766c65;
+}
+.mtComposerTop b{
+  color:var(--clay-deep);
+  font-weight:500;
+}
+.mtStarInput{
+  display:flex;
+  gap:4px;
+  margin-bottom:12px;
+}
+.mtStarInput button{
+  border:0;
+  background:transparent;
+  padding:0;
+  font-size:28px;
+  line-height:1;
+  color:#c8beb5;
+}
+.mtStarInput button.active{
+  color:#a87838;
+}
+.mtReviewComposer textarea{
+  width:100%;
+  min-height:112px;
+  resize:vertical;
+  border:1px solid var(--line);
+  background:#f3eee7;
+  color:var(--ink);
+  padding:14px;
+  outline:none;
+  line-height:1.55;
+}
+.mtReviewComposer textarea:focus{
+  border-color:var(--clay);
+}
+.mtSubmitReview{
+  width:100%;
+  margin-top:10px;
+  border:1px solid var(--ink);
+  background:var(--ink);
+  color:white;
+  padding:13px 14px;
+  font:500 8px 'IBM Plex Mono';
+  letter-spacing:.05em;
+}
+.mtSubmitReview:disabled{
+  opacity:.42;
+  cursor:not-allowed;
+}
+.mtCommunityReviewList{
+  padding-bottom:18px;
+}
+.mtCommunityReviewList article{
+  padding:20px 0;
+  border-bottom:1px solid var(--line);
+}
+.mtCommunityReviewList article>div{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+}
+.mtCommunityReviewList article>div span{
+  color:#a87838;
+  letter-spacing:.06em;
+}
+.mtCommunityReviewList article>div small{
+  font:500 8px 'IBM Plex Mono';
+  color:#857b73;
+}
+.mtCommunityReviewList article p{
+  margin:12px 0 10px;
+  font-size:12px;
+  line-height:1.7;
+  color:#5f5852;
+}
+.mtCommunityReviewList article>b{
+  font:500 7px 'IBM Plex Mono';
+  letter-spacing:.07em;
+  color:var(--clay-deep);
+}
+.mtNoCommunityReviews{
+  margin:22px 0;
+  padding:22px;
+  border:1px solid var(--line);
+  background:#e8ded5;
+}
+.mtNoCommunityReviews span{
+  font:500 8px 'IBM Plex Mono';
+  color:var(--clay);
+}
+.mtNoCommunityReviews h4{
+  margin:18px 0 8px;
+  font-size:28px;
+  letter-spacing:-.04em;
+}
+.mtNoCommunityReviews p{
+  margin:0;
+  font-size:12px;
+  line-height:1.65;
+  color:#675f59;
+}
+.mtExternalReviews{
+  margin-top:auto;
+  padding-top:20px;
+  border-top:1px solid var(--line);
+}
+.mtExternalReviews>span{
+  font:500 8px 'IBM Plex Mono';
+  color:var(--clay);
+}
+.mtExternalReviews p{
+  margin:8px 0 14px;
+  font-size:11px;
+  color:#6b625c;
+}
+.mtExternalReviews a{
+  min-height:54px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:var(--ink);
+  color:white;
+  border:1px solid var(--ink);
+  box-shadow:7px 7px 0 var(--clay);
+  font:500 9px 'IBM Plex Mono';
+  letter-spacing:.05em;
+}
+@media(max-width:620px){
+  .mtCommunityRating strong{
+    font-size:60px;
+  }
+  .mtStarInput button{
+    font-size:25px;
+  }
+}
