@@ -11,6 +11,7 @@ import{
   useTransform
 }from'motion/react';
 import AeroShards from'./AeroShards';
+import portraitData from'./portraitData';
 import'./styles.css';
 
 const projects=[
@@ -663,19 +664,32 @@ function App(){
             <h2>Built on <em>fundamentals.</em></h2>
             <p className="lede small">B.Tech + M.Tech in Computer Science at LNMIIT. I’m still learning, but I care about understanding the basics deeply enough to build without guessing.</p>
           </Reveal>
-          <div className="metrics">
-            {[
-              [250,'+','DSA problems'],
-              [96,'','JEE Main %ile'],
-              [92,'%','Class XII'],
-              [2,'×','Olympiad gold']
-            ].map(([v,s,label],i)=><motion.div key={label}
-              initial={{opacity:0,scale:.82,y:30}}
-              whileInView={{opacity:1,scale:1,y:0}}
-              viewport={{once:true,amount:.5}}
-              transition={{type:'spring',stiffness:120,damping:16,delay:i*.09}}
-              whileHover={reduce?undefined:{scale:1.04,y:-5}}
-            ><Counter value={v} suffix={s}/><span>{label}</span></motion.div>)}
+          <div className="profileVisualColumn">
+            <motion.figure
+              className="profilePortrait"
+              initial={{opacity:0,y:36,rotate:1.2}}
+              whileInView={{opacity:1,y:0,rotate:0}}
+              viewport={{once:true,amount:.25}}
+              transition={{type:'spring',stiffness:90,damping:18}}
+            >
+              <div className="portraitOffset" aria-hidden="true"/>
+              <img src={portraitData} alt="Divyansh Singh seated in a professional setting" />
+              <figcaption><span>PROFILE / LNMIIT</span><b>DIVYANSH SINGH</b></figcaption>
+            </motion.figure>
+            <div className="metrics">
+              {[
+                [250,'+','DSA problems'],
+                [96,'','JEE Main %ile'],
+                [92,'%','Class XII'],
+                [2,'×','Olympiad gold']
+              ].map(([v,s,label],i)=><motion.div key={label}
+                initial={{opacity:0,scale:.82,y:30}}
+                whileInView={{opacity:1,scale:1,y:0}}
+                viewport={{once:true,amount:.5}}
+                transition={{type:'spring',stiffness:120,damping:16,delay:i*.09}}
+                whileHover={reduce?undefined:{scale:1.04,y:-5}}
+              ><Counter value={v} suffix={s}/><span>{label}</span></motion.div>)}
+            </div>
           </div>
         </div>
 
