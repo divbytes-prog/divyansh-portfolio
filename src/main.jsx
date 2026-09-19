@@ -466,7 +466,16 @@ function LiveSignal(){
       <span><i/>LIVE BUILD SIGNAL</span>
       <small>DS/26</small>
     </div>
-    <RealtimeViewport compact/>
+    <div className="radar">
+      <motion.div className="orbit one" animate={reduce?undefined:{rotate:360}} transition={{duration:14,repeat:Infinity,ease:'linear'}}>
+        <span/>
+      </motion.div>
+      <motion.div className="orbit two" animate={reduce?undefined:{rotate:-360}} transition={{duration:9,repeat:Infinity,ease:'linear'}}>
+        <span/>
+      </motion.div>
+      <motion.div className="pulseDot" animate={reduce?undefined:{scale:[1,1.8,1],opacity:[.9,.35,.9]}} transition={{duration:2.2,repeat:Infinity}}/>
+      <div className="cross x"/><div className="cross y"/>
+    </div>
     <div className="signalBars">
       {[36,72,48,88,58,94,64,82,52,76].map((h,i)=>
         <motion.i
