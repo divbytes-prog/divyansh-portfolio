@@ -460,6 +460,279 @@ async function sendGoogleStreetViewImage(res,lat,lng){
   }
 }
 
+
+function bboxAround(lat,lng,radiusMeters){
+  const dLat=radiusMeters/111111;
+  const dLng=radiusMeters/(111111*Math.max(.2,Math.cos(lat*Math.PI/180)));
+  return {
+    west:lng-dLng,
+    south:lat-dLat,
+    east:lng+dLng,
+    north:lat+dLat
+  };
+}
+
+function angleDelta(a,b){
+  if(!Number.isFinite(Number(a))||!Number.isFinite(Number(b)))return null;
+  const d=Math.abs((((Number(a)-Number(b))+540)%360)-180);
+  return d;
+}
+
+function firstNumber(obj,keys){
+  if(!obj||typeof obj!=='object')return null;
+  for(const key of keys){
+    const value=obj[key];
+    const n=Number(value);
+    if(Number.isFinite(n))return n;
+  }
+  return null;
+}
+
+function firstString(obj,keys){
+  if(!obj||typeof obj!=='object')return '';
+  for(const key of keys){
+    const value=obj[key];
+    if(typeof value==='string'&&value.trim())return value.trim();
+  }
+  return '';
+}
+
+function rankStreetImage(image,target){
+  const point={lat:Number(image.lat),lng:Number(image.lng)};
+  if(!Number.isFinite(point.lat)||!Number.isFinite(point.lng))return null;
+  const distanceMeters=Math.round(haversineKm(target,point)*1000);
+  const targetBearing=bearingDegrees(point,target);
+  const heading=Number.isFinite(Number(image.heading))?Number(image.heading):null;
+  const aimDelta=heading==null?null:angleDelta(heading,targetBearing);
+
+  // Exact-nearby imagery wins first. When heading is known, reward frames
+  // actually facing toward the selected building instead of only being nearby.
+  const headingPenalty=aimDelta==null?35:Math.min(aimDelta,120)*1.05;
+  const freshness=Number.isFinite(Number(image.capturedAt))
+    ?Math.max(0,18-(Date.now()-Number(image.capturedAt))/(1000*60*60*24*365)*1.3)
+    :0;
+  const score=distanceMeters+headingPenalty-freshness;
+
+  return {
+    ...image,
+    distanceMeters,
+    targetBearing,
+    aimDelta,
+    score
+  };
+}
+
+function kartaCdnUrl(url=''){
+  if(!/^https?:\/\//i.test(url))return '';
+  if(/cdn\.kartaview\.org/i.test(url))return url;
+  try{
+    return 'https://cdn.kartaview.org/pr:sharp/'+Buffer.from(url).toString('base64url');
+  }catch{
+    return url;
+  }
+}
+
+function normalizeKartaPhoto(item,target,index){
+  const lat=firstNumber(item,['lat','latitude','gpsLat','currentLat']);
+  const lng=firstNumber(item,['lng','lon','longitude','gpsLng','currentLng']);
+  if(!Number.isFinite(lat)||!Number.isFinite(lng))return null;
+
+  const direct=firstString(item,[
+    'imageProcUrl','fileurlProc','fileurlLTh','fileurlTh','fileurl','photo','url'
+  ]);
+  const imageUrl=direct?kartaCdnUrl(direct):'';
+  if(!imageUrl)return null;
+
+  const heading=firstNumber(item,[
+    'heading','gpsDirection','direction','compassAngle','cameraHeading','sequenceIndex'
+  ]);
+  const capturedRaw=firstString(item,['dateAdded','date_added','dateProcessed','timestamp']);
+  const capturedAt=capturedRaw?Date.parse(capturedRaw):null;
+  const id=String(item.id||item.photoId||item.photo_id||('karta-'+index));
+  const sequenceId=String(item.sequenceId||item.sequence_id||item.sequence?.id||'');
+
+  return rankStreetImage({
+    id:'kartaview-'+id,
+    rawId:id,
+    provider:'KartaView',
+    providerId:'kartaview',
+    lat,lng,heading,
+    capturedAt:Number.isFinite(capturedAt)?capturedAt:null,
+    imageUrl,
+    previewUrl:imageUrl,
+    isPano:String(item.fieldOfView||item.sequence?.fieldOfView||'')==='360',
+    sequenceId,
+    viewerUrl:'https://kartaview.org/map/@'+lat+','+lng+',19z',
+    attribution:'KartaView community imagery',
+    quality:'street-photo'
+  },target);
+}
+
+async function kartaViewStreetImages(lat,lng,headers){
+  const url='https://api.openstreetcam.org/2.0/photo/?lat='+encodeURIComponent(lat)+
+    '&lng='+encodeURIComponent(lng)+
+    '&radius=700&zoomLevel=18&join=sequence&orderBy=id&orderDirection=desc';
+  const data=await fetchJson(url,{headers},6000);
+  const rows=Array.isArray(data?.result?.data)
+    ?data.result.data
+    :Array.isArray(data?.data)
+      ?data.data
+      :Array.isArray(data?.result)
+        ?data.result
+        :[];
+  return rows.map((row,i)=>normalizeKartaPhoto(row,{lat,lng},i)).filter(Boolean);
+}
+
+function panoramaxAssetUrl(feature){
+  const assets=feature?.assets||{};
+  const preferred=['hd','sd','visual','thumbnail','thumb','preview','image'];
+  for(const key of preferred){
+    const href=assets?.[key]?.href;
+    if(typeof href==='string'&&/^https?:\/\//i.test(href))return href;
+  }
+  for(const asset of Object.values(assets)){
+    const href=asset?.href;
+    if(typeof href==='string'&&/^https?:\/\//i.test(href)&&/\.(?:jpe?g|webp|png)(?:\?|$)/i.test(href))return href;
+  }
+  const p=feature?.properties||{};
+  return firstString(p,['geovisio:thumbnail','thumbnail','preview']);
+}
+
+function normalizePanoramaxFeature(feature,target,index){
+  const coords=feature?.geometry?.coordinates||[];
+  const lng=Number(coords[0]),lat=Number(coords[1]);
+  if(!Number.isFinite(lat)||!Number.isFinite(lng))return null;
+  const p=feature.properties||{};
+  const id=String(feature.id||p.id||('panoramax-'+index));
+  const imageUrl=panoramaxAssetUrl(feature);
+  const heading=firstNumber(p,[
+    'view:azimuth','heading','compass_angle','gps_heading',
+    'Exif.GPSInfo.GPSImgDirection','MAPCompassHeading'
+  ]);
+  const capture=firstString(p,['datetime','datetimetz','captured_at','capture_time']);
+  const capturedAt=capture?Date.parse(capture):null;
+  const collection=String(feature.collection||p.collection||p.sequence||'');
+  const imageType=String(p['pers:interior_orientation']||p['geovisio:projection']||p.type||'').toLowerCase();
+  const viewerUrl='https://explore.panoramax.fr/?pic='+encodeURIComponent(id)+'&nav=any';
+
+  return rankStreetImage({
+    id:'panoramax-'+id,
+    rawId:id,
+    provider:'Panoramax',
+    providerId:'panoramax',
+    lat,lng,heading,
+    capturedAt:Number.isFinite(capturedAt)?capturedAt:null,
+    imageUrl,
+    previewUrl:imageUrl,
+    isPano:/equirect|spherical|360|pano/.test(imageType),
+    sequenceId:collection,
+    viewerUrl,
+    embedUrl:viewerUrl,
+    attribution:'Panoramax open street imagery',
+    quality:'open-street-photo'
+  },target);
+}
+
+async function panoramaxStreetImages(lat,lng,headers){
+  const box=bboxAround(lat,lng,650);
+  const url='https://api.panoramax.xyz/api/search?bbox='+
+    encodeURIComponent([box.west,box.south,box.east,box.north].join(','))+
+    '&limit=40';
+  const data=await fetchJson(url,{headers},6500);
+  const rows=Array.isArray(data?.features)?data.features:[];
+  return rows.map((row,i)=>normalizePanoramaxFeature(row,{lat,lng},i)).filter(Boolean);
+}
+
+async function mapillaryStreetImages(lat,lng){
+  const token=process.env.MAPILLARY_ACCESS_TOKEN||process.env.MAPILLARY_TOKEN;
+  if(!token)return [];
+  const box=bboxAround(lat,lng,650);
+  const fields=[
+    'id','thumb_2048_url','thumb_1024_url','computed_geometry',
+    'captured_at','computed_compass_angle','camera_type','sequence'
+  ].join(',');
+  const url='https://graph.mapillary.com/images?access_token='+encodeURIComponent(token)+
+    '&bbox='+encodeURIComponent([box.west,box.south,box.east,box.north].join(','))+
+    '&limit=40&fields='+encodeURIComponent(fields);
+  const data=await fetchJson(url,{},6500);
+  const rows=Array.isArray(data?.data)?data.data:[];
+  return rows.map((row,i)=>{
+    const coords=row?.computed_geometry?.coordinates||row?.geometry?.coordinates||[];
+    const lngN=Number(coords[0]),latN=Number(coords[1]);
+    if(!Number.isFinite(latN)||!Number.isFinite(lngN))return null;
+    const id=String(row.id||('mapillary-'+i));
+    const imageUrl=row.thumb_2048_url||row.thumb_1024_url||'';
+    if(!imageUrl)return null;
+    return rankStreetImage({
+      id:'mapillary-'+id,
+      rawId:id,
+      provider:'Mapillary',
+      providerId:'mapillary',
+      lat:latN,lng:lngN,
+      heading:firstNumber(row,['computed_compass_angle','compass_angle']),
+      capturedAt:Number(row.captured_at)||null,
+      imageUrl,
+      previewUrl:imageUrl,
+      isPano:String(row.camera_type||'').toLowerCase()==='spherical',
+      sequenceId:String(row.sequence||''),
+      viewerUrl:'https://www.mapillary.com/app/?pKey='+encodeURIComponent(id),
+      attribution:'Mapillary community imagery',
+      quality:'street-photo'
+    },{lat,lng});
+  }).filter(Boolean);
+}
+
+function streetProviderSummary(id,status,count,error=''){
+  return {id,status,count:Number(count)||0,error:error||''};
+}
+
+async function openStreetImagery(lat,lng,headers){
+  const jobs=[
+    ['panoramax',()=>panoramaxStreetImages(lat,lng,headers)],
+    ['kartaview',()=>kartaViewStreetImages(lat,lng,headers)]
+  ];
+
+  if(process.env.MAPILLARY_ACCESS_TOKEN||process.env.MAPILLARY_TOKEN){
+    jobs.unshift(['mapillary',()=>mapillaryStreetImages(lat,lng)]);
+  }
+
+  const settled=await Promise.all(jobs.map(async([id,run])=>{
+    try{
+      const items=await run();
+      return {id,status:'ready',items};
+    }catch(e){
+      return {id,status:'unavailable',items:[],error:e?.message||'provider error'};
+    }
+  }));
+
+  const all=settled.flatMap(x=>x.items||[])
+    .filter(item=>item&&item.distanceMeters<=900)
+    .sort((a,b)=>a.score-b.score);
+
+  // Avoid showing a nearly identical burst from a single drive before other
+  // providers. Keep enough imagery for a useful sequence browser.
+  const seen=new Set();
+  const balanced=[];
+  for(const item of all){
+    const key=item.providerId+'|'+item.rawId;
+    if(seen.has(key))continue;
+    seen.add(key);
+    balanced.push(item);
+    if(balanced.length>=18)break;
+  }
+
+  return {
+    images:balanced,
+    providers:[
+      ...settled.map(x=>streetProviderSummary(x.id,x.status,x.items?.length,x.error)),
+      ...(process.env.MAPILLARY_ACCESS_TOKEN||process.env.MAPILLARY_TOKEN
+        ?[]
+        :[streetProviderSummary('mapillary','token-optional',0)])
+    ],
+    selected:balanced[0]||null
+  };
+}
+
 function polygonCentroid(coords){
   if(!coords?.length)return null;
   const sum=coords.reduce((a,p)=>({lat:a.lat+Number(p.lat||0),lng:a.lng+Number(p.lon||0)}),{lat:0,lng:0});
@@ -1171,6 +1444,14 @@ export default async function handler(req,res){
   };
 
   try{
+    if(action==='streetmedia'){
+      const lat=num(req.query.lat,-90,90);
+      const lng=num(req.query.lng,-180,180);
+      if(lat===null||lng===null)return send(res,400,{error:'Invalid coordinates'},0);
+      const data=await openStreetImagery(lat,lng,headers);
+      return send(res,200,data,data.images.length?300:60);
+    }
+
     if(action==='streetviewmeta'){
       const lat=num(req.query.lat,-90,90);
       const lng=num(req.query.lng,-180,180);
