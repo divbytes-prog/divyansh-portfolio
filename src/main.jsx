@@ -146,6 +146,37 @@ function Counter({value,suffix=''}) {
   return <strong ref={ref}>{display}{suffix}</strong>;
 }
 
+function FieldNotebook(){
+  const reduce=useReducedMotion();
+  const pathAnim=reduce?undefined:{pathLength:[0,1],opacity:[0,1]};
+  return <motion.div className="fieldNotebook"
+    initial={{opacity:0,y:35,rotate:2}}
+    whileInView={{opacity:1,y:0,rotate:-1.2}}
+    viewport={{once:true,amount:.28}}
+    transition={{type:'spring',stiffness:90,damping:16}}
+  >
+    <div className="notebookTape" aria-hidden="true"/>
+    <div className="notebookHead"><span>DS / FIELD NOTES</span><small>VOL. 04 — 2026</small></div>
+    <svg viewBox="0 0 520 280" role="img" aria-label="A hand-drawn build path from question to working product">
+      <motion.path d="M42 214 C95 125 128 188 176 105 C219 30 278 74 309 142 C340 207 392 187 472 70"
+        fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"
+        initial={{pathLength:0,opacity:0}} whileInView={pathAnim||{pathLength:1,opacity:1}}
+        viewport={{once:true}} transition={{duration:2.1,ease:[.16,1,.3,1]}}/>
+      <motion.path d="M438 78 L474 69 L461 102" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"
+        initial={{pathLength:0}} whileInView={reduce?{pathLength:1}:{pathLength:[0,1]}}
+        viewport={{once:true}} transition={{delay:1.55,duration:.7}}/>
+      <circle cx="42" cy="214" r="7"/><circle cx="176" cy="105" r="7"/><circle cx="309" cy="142" r="7"/><circle cx="472" cy="70" r="7"/>
+      <text x="28" y="246">QUESTION</text><text x="145" y="84">CODE</text><text x="287" y="174">REFINE</text><text x="420" y="48">SHIP</text>
+    </svg>
+    <div className="notebookStats">
+      <div><b>250+</b><span>DSA reps</span></div>
+      <div><b>2024—29</b><span>LNMIIT</span></div>
+      <div><b>BUILD</b><span>before perfect</span></div>
+    </div>
+    <div className="notebookScribble" aria-hidden="true">make it work → make it clear → make it yours</div>
+  </motion.div>;
+}
+
 function LiveSignal(){
   const reduce=useReducedMotion();
   return <motion.div
@@ -269,7 +300,7 @@ function App(){
           />
         </motion.div>
         <div className="heroFallback" aria-hidden="true"/><div className="heroVeil" aria-hidden="true"/>
-        <div className="heroInner"><div className="heroColorBlock" aria-hidden="true"/><div className="heroStudioMark" aria-hidden="true">BUILD / LEARN / SHIP</div>
+        <div className="heroInner"><div className="heroColorBlock" aria-hidden="true"/><div className="heroStudioMark" aria-hidden="true">BUILD / LEARN / SHIP</div><div className="heroMarginNote" aria-hidden="true">NO TEMPLATE<br/>JUST ITERATION</div>
           <motion.div className="heroMeta" initial={{opacity:0,y:18}} animate={{opacity:1,y:0}} transition={{delay:.25,duration:.65}}>
             <span><i/>COMPUTER SCIENCE + ML</span><span>LNMIIT · JAIPUR</span>
           </motion.div>
@@ -300,7 +331,7 @@ function App(){
             <span>Good work takes patience.</span><span>Good work takes patience.</span><span>Good work takes patience.</span><span>Good work takes patience.</span>
           </motion.div>
         </div>
-        <div className="statementGrid shell"><div className="statementBlock" aria-hidden="true"/>
+        <div className="statementGrid shell"><div className="statementBlock" aria-hidden="true"/><FieldNotebook/>
           <Reveal><p className="eyebrow">01 / ABOUT</p></Reveal>
           <Reveal delay={.07}>
             <h2>I care about making things <em>clear, useful and real.</em></h2>
