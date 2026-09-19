@@ -298,163 +298,6 @@ function RealtimeViewport({compact=false}){
   </div>;
 }
 
-function BuildConsole(){
-  const ref=useRef(null);
-  const inView=useInView(ref,{amount:.25});
-  const reduce=useReducedMotion();
-  const[active,setActive]=useState(0);
-  const rows=[
-    ['01','observe(problem)','constraints mapped'],
-    ['02','prototype(core)','working path found'],
-    ['03','test(assumptions)','friction removed'],
-    ['04','ship(product)','feedback loop open']
-  ];
-
-  useEffect(()=>{
-    if(!inView||reduce)return;
-    const id=setInterval(()=>setActive(v=>(v+1)%rows.length),1350);
-    return()=>clearInterval(id);
-  },[inView,reduce,rows.length]);
-
-  return <motion.div ref={ref} className="buildConsole"
-    initial={{opacity:0,y:38,scale:.96}}
-    whileInView={{opacity:1,y:0,scale:1}}
-    viewport={{once:true,amount:.2}}
-    transition={{type:'spring',stiffness:95,damping:17}}
-  >
-    <div className="consoleHead">
-      <span><i/>PROCESS RUNTIME</span>
-      <b>{inView?'RUNNING':'IDLE'}</b>
-    </div>
-    <div className="consoleBody">
-      <div className="consoleRail" aria-hidden="true"><motion.i animate={reduce?undefined:{y:['0%','310%']}} transition={{duration:5.4,repeat:Infinity,ease:'linear'}}/></div>
-      <div className="consoleRows">
-        {rows.map(([n,cmd,out],i)=><motion.div key={n} className={i===active?'consoleRow active':'consoleRow'}
-          animate={i===active&&!reduce?{x:[0,4,0]}:undefined}
-          transition={{duration:.38}}
-        >
-          <span>{n}</span>
-          <code>{cmd}</code>
-          <b>{out}</b>
-          <motion.i animate={i===active&&!reduce?{opacity:[.2,1,.2]}:{opacity:.2}} transition={{duration:1,repeat:i===active?Infinity:0}}/>
-        </motion.div>)}
-      </div>
-    </div>
-    <div className="consoleFoot">
-      <span>INPUT → ITERATION → OUTPUT</span>
-      <b>NO MAGIC / JUST LOOPS</b>
-    </div>
-  </motion.div>;
-}
-
-function SkillNetwork(){
-  const ref=useRef(null);
-  const canvasRef=useRef(null);
-  const reduce=useReducedMotion();
-
-  useEffect(()=>{
-    const wrap=ref.current,canvas=canvasRef.current;
-    if(!wrap||!canvas)return;
-    const ctx=canvas.getContext('2d');
-    const base=[
-      ['PYTHON',.18,.26],['C++',.42,.17],['REACT',.71,.24],['SQL',.84,.48],
-      ['ML',.58,.52],['GIT',.27,.57],['JS',.40,.78],['AWS',.75,.76]
-    ];
-    const pointer={x:.5,y:.5,active:false};
-    let w=1,h=1,dpr=1,raf=0,visible=true;
-
-    const resize=()=>{
-      const r=wrap.getBoundingClientRect();
-      w=Math.max(1,r.width);h=Math.max(1,r.height);
-      dpr=Math.min(window.devicePixelRatio||1,2);
-      canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);
-      canvas.style.width=w+'px';canvas.style.height=h+'px';
-      ctx.setTransform(dpr,0,0,dpr,0,0);
-    };
-
-    const render=t=>{
-      const time=(t||0)*.001;
-      ctx.clearRect(0,0,w,h);
-      ctx.fillStyle='#eee6dc';ctx.fillRect(0,0,w,h);
-
-      const pts=base.map(([label,bx,by],i)=>{
-        const wobble=reduce?0:Math.sin(time*(.55+i*.035)+i)*7;
-        let x=bx*w+Math.cos(time*.42+i)*wobble;
-        let y=by*h+Math.sin(time*.48+i*.7)*wobble;
-        if(pointer.active){
-          const px=pointer.x*w,py=pointer.y*h,dx=x-px,dy=y-py,d=Math.hypot(dx,dy);
-          if(d<120){const p=(120-d)/120;x+=dx/(d||1)*p*18;y+=dy/(d||1)*p*18}
-        }
-        return{label,x,y};
-      });
-
-      for(let i=0;i<pts.length;i++){
-        for(let j=i+1;j<pts.length;j++){
-          const a=pts[i],b=pts[j],d=Math.hypot(a.x-b.x,a.y-b.y);
-          if(d<Math.min(w*.42,260)){
-            ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);
-            ctx.strokeStyle='rgba(87,70,60,'+(0.17*(1-d/280))+')';
-            ctx.lineWidth=1;ctx.stroke();
-          }
-        }
-      }
-
-      pts.forEach((p,i)=>{
-        const pulse=reduce?0:Math.sin(time*1.5+i)*1.4;
-        ctx.beginPath();ctx.arc(p.x,p.y,5+pulse,0,Math.PI*2);
-        ctx.fillStyle=i===4?'#8d927d':'#9a6654';ctx.fill();
-        ctx.beginPath();ctx.arc(p.x,p.y,15+pulse*1.5,0,Math.PI*2);
-        ctx.strokeStyle=i===4?'rgba(141,146,125,.35)':'rgba(154,102,84,.25)';
-        ctx.stroke();
-        ctx.fillStyle='#29231f';
-        ctx.font='500 10px "IBM Plex Mono", monospace';
-        ctx.fillText(p.label,p.x+13,p.y-12);
-      });
-
-      const px=pointer.x*w,py=pointer.y*h;
-      if(pointer.active){
-        ctx.beginPath();ctx.arc(px,py,28,0,Math.PI*2);
-        ctx.strokeStyle='rgba(41,35,31,.2)';ctx.stroke();
-      }
-      if(!reduce&&visible)raf=requestAnimationFrame(render);
-    };
-
-    const move=e=>{
-      const r=wrap.getBoundingClientRect();
-      pointer.x=(e.clientX-r.left)/r.width;pointer.y=(e.clientY-r.top)/r.height;pointer.active=true;
-    };
-    const leave=()=>{pointer.active=false};
-    const ro=new ResizeObserver(resize);ro.observe(wrap);
-    const io=new IntersectionObserver(([entry])=>{
-      const was=visible;visible=entry.isIntersecting;
-      if(visible&&!was&&!reduce){cancelAnimationFrame(raf);raf=requestAnimationFrame(render)}
-    },{threshold:.05});
-    io.observe(wrap);
-    wrap.addEventListener('pointermove',move,{passive:true});
-    wrap.addEventListener('pointerleave',leave);
-    resize();reduce?render(0):raf=requestAnimationFrame(render);
-
-    return()=>{
-      cancelAnimationFrame(raf);ro.disconnect();io.disconnect();
-      wrap.removeEventListener('pointermove',move);wrap.removeEventListener('pointerleave',leave);
-    };
-  },[reduce]);
-
-  return <motion.div ref={ref} className="skillNetwork"
-    initial={{opacity:0,y:45,rotate:.8}}
-    whileInView={{opacity:1,y:0,rotate:0}}
-    viewport={{once:true,amount:.2}}
-    transition={{type:'spring',stiffness:90,damping:18}}
-  >
-    <canvas ref={canvasRef} aria-hidden="true"/>
-    <div className="networkHud">
-      <span><i/>LIVE SKILL FIELD</span>
-      <b>MOVE THROUGH IT</b>
-    </div>
-    <div className="networkLegend"><span>FOUNDATIONS</span><span>WEB</span><span>DATA / ML</span><span>TOOLS</span></div>
-  </motion.div>;
-}
-
 function LiveSignal(){
   const reduce=useReducedMotion();
   return <motion.div
@@ -631,11 +474,6 @@ function App(){
           </motion.article>)}
         </div>
 
-        <div className="processLiveGrid">
-          <BuildConsole/>
-          <Reveal className="processNote"><span>02A / LIVE LOOP</span><p>The process is not a straight line. It keeps moving until the useful version survives.</p></Reveal>
-        </div>
-
         <Reveal className="flowWrap">
           <div className="flow" aria-label="Build process: question to code to system to product">
             {['QUESTION','CODE','SYSTEM','PRODUCT'].map((item,i)=><React.Fragment key={item}>
@@ -682,11 +520,6 @@ function App(){
               whileHover={reduce?undefined:{scale:1.04,y:-5}}
             ><Counter value={v} suffix={s}/><span>{label}</span></motion.div>)}
           </div>
-        </div>
-
-        <div className="profileLiveRow">
-          <div className="profileLiveCopy"><span>04A / SYSTEM MAP</span><p>My stack as a living network. Move through it.</p></div>
-          <SkillNetwork/>
         </div>
 
         <div className="stack">
