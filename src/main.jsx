@@ -356,57 +356,6 @@ function App(){
     };
   },[menu]);
 
-
-  useEffect(()=>{
-    const root=document.getElementById('top');
-    if(!root)return;
-    const selector='h1,h2,h3,p,a,button,small,code,label,strong,b,em,span';
-    const nestedSelector='h1,h2,h3,p,a,button,small,code,label,strong,b,em,span';
-
-    const candidates=[...root.querySelectorAll(selector)].filter(el=>{
-      if(!el.textContent?.trim())return false;
-      if(el.closest('[aria-hidden="true"]'))return false;
-      if(el.closest('.skipLink'))return false;
-      return !el.querySelector(nestedSelector);
-    });
-
-    if(reduce){
-      candidates.forEach(el=>el.classList.add('textPop','textPopIn'));
-      root.classList.add('popReady');
-      return()=>{
-        root.classList.remove('popReady');
-        candidates.forEach(el=>el.classList.remove('textPop','textPopIn'));
-      };
-    }
-
-    candidates.forEach((el,i)=>{
-      el.classList.add('textPop');
-      el.style.setProperty('--pop-delay',`${(i%6)*34}ms`);
-    });
-
-    const observer=new IntersectionObserver(entries=>{
-      entries.forEach(entry=>{
-        if(entry.isIntersecting){
-          entry.target.classList.add('textPopIn');
-          observer.unobserve(entry.target);
-        }
-      });
-    },{threshold:.12,rootMargin:'0px 0px -3% 0px'});
-
-    candidates.forEach(el=>observer.observe(el));
-    const frame=requestAnimationFrame(()=>root.classList.add('popReady'));
-
-    return()=>{
-      cancelAnimationFrame(frame);
-      observer.disconnect();
-      root.classList.remove('popReady');
-      candidates.forEach(el=>{
-        el.classList.remove('textPop','textPopIn');
-        el.style.removeProperty('--pop-delay');
-      });
-    };
-  },[menu,reduce]);
-
   return <main id="top">
     <motion.div className="scrollProgress" style={{scaleX:progress}} aria-hidden="true"/>
     <CursorFollower/>
