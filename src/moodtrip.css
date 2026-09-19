@@ -1372,3 +1372,146 @@ a{text-decoration:none}
 }
 
 /* production sync: selected-place public reviews */
+
+
+/* exact building street-camera mode */
+.mtBuildingStatus.camera i{
+  background:#4285f4;
+  box-shadow:0 0 0 4px rgba(66,133,244,.12);
+}
+.mtStreetCamera{
+  position:absolute;
+  z-index:430;
+  inset:0;
+  background:#171411;
+  overflow:hidden;
+}
+.mtStreetCamera>img{
+  width:100%;
+  height:100%;
+  display:block;
+  object-fit:cover;
+}
+.mtStreetCameraState,
+.mtStreetCameraFallback{
+  position:absolute;
+  inset:0;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  padding:86px 34px 48px;
+  background:
+    linear-gradient(180deg,rgba(23,20,17,.88),rgba(23,20,17,.96)),
+    radial-gradient(circle at 68% 35%,rgba(154,102,84,.34),transparent 42%);
+  color:#f7f2eb;
+}
+.mtStreetCameraState{
+  gap:14px;
+  font:500 8px 'IBM Plex Mono';
+  letter-spacing:.06em;
+}
+.mtStreetCameraState i{
+  width:30px;
+  height:30px;
+  border:2px solid rgba(255,255,255,.25);
+  border-top-color:#f1b09a;
+  border-radius:50%;
+  animation:mtSpin .8s linear infinite;
+}
+.mtStreetCameraFallback span{
+  font:500 8px 'IBM Plex Mono';
+  letter-spacing:.07em;
+  color:#f1b09a;
+}
+.mtStreetCameraFallback h4{
+  max-width:520px;
+  margin:15px auto 10px;
+  font-size:clamp(25px,4vw,42px);
+  line-height:.95;
+  letter-spacing:-.045em;
+}
+.mtStreetCameraFallback p{
+  max-width:520px;
+  margin:0 auto;
+  color:#cfc5bc;
+  font-size:11px;
+  line-height:1.65;
+}
+.mtStreetCameraFallback a{
+  margin-top:20px;
+  padding:11px 13px;
+  border:1px solid rgba(255,255,255,.38);
+  background:#f6f0e8;
+  color:#211c18;
+  font:500 8px 'IBM Plex Mono';
+  letter-spacing:.05em;
+}
+.mtStreetCameraCaption{
+  position:absolute;
+  z-index:4;
+  left:12px;
+  right:12px;
+  bottom:44px;
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:18px;
+  padding:13px 14px;
+  border:1px solid rgba(255,255,255,.28);
+  background:rgba(23,20,17,.82);
+  backdrop-filter:blur(12px);
+  color:white;
+}
+.mtStreetCameraCaption span,
+.mtStreetCameraCaption small,
+.mtStreetCameraCaption a{
+  font:500 7px 'IBM Plex Mono';
+  letter-spacing:.05em;
+}
+.mtStreetCameraCaption span{
+  color:#f1b09a;
+}
+.mtStreetCameraCaption b{
+  display:block;
+  margin-top:6px;
+  font-size:14px;
+}
+.mtStreetCameraCaption small{
+  display:block;
+  margin-top:4px;
+  color:#cfc5bc;
+}
+.mtStreetCameraCaption a{
+  flex:0 0 auto;
+  padding-bottom:3px;
+  border-bottom:1px solid currentColor;
+  color:white;
+}
+.mtPublicReviewEmpty.error{
+  background:#efe1db;
+}
+.mtPublicReviewEmpty.error span{
+  color:#9a4e42;
+}
+@media(max-width:700px){
+  .mtMapLayerSwitch{
+    right:12px;
+  }
+  .mtMapLayerSwitch button{
+    flex:1 1 auto;
+    padding:8px 7px;
+    font-size:6px;
+    white-space:nowrap;
+  }
+  .mtStreetCameraCaption{
+    align-items:flex-start;
+    flex-direction:column;
+    bottom:38px;
+  }
+  .mtStreetCameraFallback{
+    padding-left:22px;
+    padding-right:22px;
+  }
+}
