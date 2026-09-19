@@ -474,14 +474,6 @@ function App(){
           </motion.article>)}
         </div>
 
-        <Reveal className="flowWrap">
-          <div className="flow" aria-label="Build process: question to code to system to product">
-            {['QUESTION','CODE','SYSTEM','PRODUCT'].map((item,i)=><React.Fragment key={item}>
-              <motion.span whileHover={{scale:1.08,color:'#8a6f60'}}>{item}</motion.span>
-              {i<3&&<div className="flowLine"><motion.i animate={reduce?undefined:{x:['-100%','120%']}} transition={{duration:2.4,repeat:Infinity,delay:i*.32,ease:'easeInOut'}}/></div>}
-            </React.Fragment>)}
-          </div>
-        </Reveal>
       </section>
 
       <section className="work shell" id="work"><div className="workColorBlock" aria-hidden="true"/>
