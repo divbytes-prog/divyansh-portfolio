@@ -1205,3 +1205,129 @@ a{text-decoration:none}
     font-size:25px;
   }
 }
+
+
+/* public review discovery */
+.mtPublicReviews{
+  padding:24px 0;
+  border-bottom:1px solid var(--line);
+}
+.mtPublicReviewTitle{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:18px;
+}
+.mtPublicReviewTitle span,
+.mtPublicReviewTitle>b{
+  font:500 8px 'IBM Plex Mono';
+  letter-spacing:.06em;
+}
+.mtPublicReviewTitle span{
+  color:var(--clay);
+}
+.mtPublicReviewTitle>b{
+  color:#7c726a;
+  font-weight:500;
+  white-space:nowrap;
+}
+.mtPublicReviewTitle h4{
+  margin:8px 0 0;
+  font-size:26px;
+  line-height:1;
+  letter-spacing:-.04em;
+}
+.mtPublicReviewLoading{
+  min-height:120px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-direction:column;
+  gap:12px;
+  margin-top:16px;
+  background:#e8ded5;
+  border:1px solid var(--line);
+  font:500 8px 'IBM Plex Mono';
+  color:#6e655e;
+}
+.mtPublicReviewLoading i{
+  width:26px;
+  height:26px;
+  border:2px solid #c8bdb3;
+  border-top-color:var(--clay);
+  border-radius:50%;
+  animation:mtSpin .8s linear infinite;
+}
+.mtPublicReviewList{
+  display:grid;
+  gap:10px;
+  margin-top:18px;
+}
+.mtPublicReviewList article{
+  border:1px solid var(--line);
+  background:#f5f0e9;
+  padding:15px;
+}
+.mtPublicReviewList article>div{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+}
+.mtPublicReviewList article>div span,
+.mtPublicReviewList article>div b,
+.mtPublicReviewList article a{
+  font:500 7px 'IBM Plex Mono';
+  letter-spacing:.05em;
+}
+.mtPublicReviewList article>div span{
+  color:var(--clay-deep);
+}
+.mtPublicReviewList article>div b{
+  color:#948980;
+  font-weight:500;
+}
+.mtPublicReviewList article h5{
+  margin:12px 0 7px;
+  font-size:16px;
+  line-height:1.18;
+  letter-spacing:-.025em;
+}
+.mtPublicReviewList article p{
+  margin:0;
+  color:#625a54;
+  font-size:11px;
+  line-height:1.65;
+}
+.mtPublicReviewList article a{
+  display:inline-block;
+  margin-top:12px;
+  padding-bottom:3px;
+  border-bottom:1px solid currentColor;
+  color:var(--clay-deep);
+}
+.mtPublicReviewEmpty{
+  margin-top:18px;
+  padding:18px;
+  border:1px solid var(--line);
+  background:#e8ded5;
+}
+.mtPublicReviewEmpty span{
+  font:500 8px 'IBM Plex Mono';
+  color:var(--clay);
+}
+.mtPublicReviewEmpty p{
+  margin:9px 0 0;
+  color:#675f59;
+  font-size:11px;
+  line-height:1.6;
+}
+@media(max-width:620px){
+  .mtPublicReviewTitle{
+    flex-direction:column;
+    gap:9px;
+  }
+  .mtPublicReviewTitle h4{
+    font-size:23px;
+  }
+}
