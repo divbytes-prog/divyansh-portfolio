@@ -696,7 +696,239 @@ async function reviewsFromPage(url,headers){
   return reviewsFromReaderMarkdown(reader,url);
 }
 
+
+async function wanderlogJson(path,params,headers,timeout=7000){
+  const u=new URL('https://wanderlog.com/api/'+path.replace(/^\/+/,''));
+  Object.entries(params||{}).forEach(([k,v])=>{
+    if(v!==undefined&&v!==null&&v!=='')u.searchParams.set(k,String(v));
+  });
+  return fetchJson(u.href,{
+    headers:{
+      ...headers,
+      'Accept':'application/json',
+      'User-Agent':'Mozilla/5.0 (compatible; MoodTrip/3.2)'
+    }
+  },timeout);
+}
+
+function textSimilarity(a='',b=''){
+  const clean=v=>String(v).toLowerCase().replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
+  const aa=clean(a),bb=clean(b);
+  if(!aa||!bb)return 0;
+  if(aa===bb)return 1;
+  if(aa.includes(bb)||bb.includes(aa))return .9;
+  const A=new Set(aa.split(' ')),B=new Set(bb.split(' '));
+  let common=0;A.forEach(x=>{if(B.has(x))common++});
+  return common/Math.max(A.size,B.size,1);
+}
+
+async function wanderlogPlaceSearch(name,address,lat,lng,headers){
+  const request={
+    input:[name,address].filter(Boolean).join(' '),
+    sessiontoken:'moodtrip-'+Date.now(),
+    location:{
+      longitude:Number.isFinite(lng)?lng:0,
+      latitude:Number.isFinite(lat)?lat:0
+    },
+    radius:50000,
+    language:'en'
+  };
+  const data=await wanderlogJson(
+    'placesAPI/autocomplete/v2',
+    {request:JSON.stringify(request)},
+    headers,
+    6500
+  );
+  const rows=Array.isArray(data?.data)?data.data:[];
+  if(!rows.length)return null;
+
+  const ranked=rows.map(row=>{
+    const main=row.structured_formatting?.main_text||row.description||'';
+    const secondary=row.structured_formatting?.secondary_text||row.secondaryText||'';
+    let score=textSimilarity(main,name)*100;
+    score+=textSimilarity(secondary,address)*30;
+    if(String(main).toLowerCase()===String(name).toLowerCase())score+=30;
+    return {row,score};
+  }).sort((a,b)=>b.score-a.score);
+
+  return ranked[0]?.row||null;
+}
+
+function deepValues(value,keyMatcher,out=[]){
+  if(value==null)return out;
+  if(Array.isArray(value)){
+    value.forEach(v=>deepValues(v,keyMatcher,out));
+    return out;
+  }
+  if(typeof value!=='object')return out;
+  for(const [k,v] of Object.entries(value)){
+    if(keyMatcher(k,v))out.push(v);
+    deepValues(v,keyMatcher,out);
+  }
+  return out;
+}
+
+function firstField(obj,keys){
+  if(!obj||typeof obj!=='object')return null;
+  for(const k of keys){
+    const v=obj[k];
+    if(v!==undefined&&v!==null&&v!=='')return v;
+  }
+  return null;
+}
+
+function reviewerName(obj){
+  const direct=firstField(obj,['author_name','authorName','reviewerName','userName','username']);
+  if(direct)return typeof direct==='string'?direct:(direct.name||null);
+  const nested=firstField(obj,['author','reviewer','user','profile']);
+  if(typeof nested==='string')return nested;
+  if(nested&&typeof nested==='object')return firstField(nested,['displayName','name','username','fullName'])||null;
+  return null;
+}
+
+function reviewText(obj){
+  const v=firstField(obj,[
+    'reviewText','review_text','text','reviewBody','body','content','comment',
+    'comments','snippet','description','originalText'
+  ]);
+  if(typeof v==='string')return decodeHtml(v).replace(/\s+/g,' ').trim();
+  if(v&&typeof v==='object'){
+    const nested=firstField(v,['text','content','value']);
+    if(typeof nested==='string')return decodeHtml(nested).replace(/\s+/g,' ').trim();
+  }
+  return '';
+}
+
+function reviewRating(obj){
+  const v=firstField(obj,['rating','score','stars','starRating','ratingValue']);
+  if(typeof v==='number')return v;
+  if(typeof v==='string'&&Number.isFinite(Number(v)))return Number(v);
+  if(v&&typeof v==='object'){
+    const nested=firstField(v,['value','rating','ratingValue']);
+    if(Number.isFinite(Number(nested)))return Number(nested);
+  }
+  return null;
+}
+
+function reviewSource(obj){
+  const v=firstField(obj,['source','sourceSite','platform','provider','reviewSource','publisher']);
+  if(typeof v==='string')return v;
+  if(v&&typeof v==='object')return firstField(v,['name','title','site','displayName'])||'Wanderlog';
+  return 'Wanderlog';
+}
+
+function normalizeReviewObject(obj,placeName){
+  if(!obj||typeof obj!=='object')return null;
+  const text=reviewText(obj);
+  if(text.length<16)return null;
+  const rating=reviewRating(obj);
+  const author=reviewerName(obj)||'Public reviewer';
+  const source=String(reviewSource(obj)||'Wanderlog');
+  return {
+    title:author+(rating?' · '+Number(rating).toFixed(1)+'★':''),
+    snippet:text.slice(0,360),
+    source:source.toUpperCase(),
+    url:'https://wanderlog.com/',
+    rating,
+    author,
+    reviewCount:null,
+    sourceRating:null,
+    businessName:placeName
+  };
+}
+
+function extractWanderlogReviewData(payload,placeName){
+  const reviews=[];
+  const seen=new Set();
+  const arrays=deepValues(payload,(key,value)=>/reviews?/i.test(key)&&Array.isArray(value));
+  arrays.forEach(arr=>{
+    arr.forEach(item=>{
+      const normalized=normalizeReviewObject(item,placeName);
+      if(!normalized)return;
+      const key=(normalized.author+'|'+normalized.snippet.slice(0,80)).toLowerCase();
+      if(seen.has(key))return;
+      seen.add(key);
+      reviews.push(normalized);
+    });
+  });
+
+  const ratings=deepValues(payload,(key,value)=>
+    /^(rating|tripadvisorRating|sourceRating)$/i.test(key)&&Number.isFinite(Number(value))
+  ).map(Number).filter(n=>n>0&&n<=5);
+
+  const counts=deepValues(payload,(key,value)=>
+    /(userRatingsTotal|numRatings|ratingCount|reviewCount|tripadvisorNumRatings)/i.test(key)&&Number.isFinite(Number(value))
+  ).map(Number).filter(n=>n>0);
+
+  const summaries=deepValues(payload,(key,value)=>
+    /(reviewsSummary|reviewSummary)/i.test(key)&&typeof value==='string'&&value.trim().length>20
+  ).map(v=>decodeHtml(v).replace(/\s+/g,' ').trim());
+
+  return {
+    reviews:reviews.slice(0,6),
+    rating:ratings[0]||null,
+    reviewCount:counts[0]||null,
+    summary:summaries[0]||''
+  };
+}
+
+async function wanderlogReviews(name,address,lat,lng,headers){
+  try{
+    const match=await wanderlogPlaceSearch(name,address,lat,lng,headers);
+    const placeId=match?.place_id;
+    if(!placeId)return null;
+
+    const calls=[
+      wanderlogJson('placesAPI/getPlaceDetails/v2',{placeId,language:'en'},headers,6500),
+      wanderlogJson('placesAPI/getPlaceDetailsAndCardData',{placeId,language:'en'},headers,6500),
+      wanderlogJson('places/metadata',{placeIds:placeId,getDetails:'true'},headers,6500),
+      wanderlogJson('places/card',{placeIds:placeId},headers,6500)
+    ];
+
+    const settled=await Promise.allSettled(calls);
+    const payloads=settled.filter(x=>x.status==='fulfilled').map(x=>x.value);
+    if(!payloads.length)return null;
+
+    const combined=extractWanderlogReviewData(payloads,name);
+    const sourceUrl='https://wanderlog.com/';
+    const items=[...combined.reviews];
+
+    if(!items.length&&combined.summary){
+      items.push({
+        title:(combined.rating?combined.rating.toFixed(1)+'★ · ':'')+'Wanderlog review summary',
+        snippet:combined.summary.slice(0,360),
+        source:'WANDERLOG',
+        url:sourceUrl,
+        rating:combined.rating,
+        author:null,
+        reviewCount:combined.reviewCount,
+        sourceRating:combined.rating,
+        businessName:name
+      });
+    }else if(items.length){
+      items.forEach(item=>{
+        item.reviewCount=combined.reviewCount;
+        item.sourceRating=combined.rating;
+      });
+    }
+
+    return {
+      items:items.slice(0,6),
+      placeId,
+      description:match.description||'',
+      rating:combined.rating,
+      reviewCount:combined.reviewCount
+    };
+  }catch(e){
+    console.warn('Wanderlog review lookup failed',e?.message);
+    return null;
+  }
+}
+
 async function publicReviewSearch(name,address,lat,lng,headers){
+  const wanderlog=await wanderlogReviews(name,address,lat,lng,headers);
+  if(wanderlog?.items?.length)return wanderlog.items;
+
   const urls=await discoverReviewUrls(name,address,headers);
   if(!urls.length)return [];
 
