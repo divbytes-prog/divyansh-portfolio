@@ -604,8 +604,6 @@ function InteractiveMap({center,places,selectedId,onSelect}){
   },[places,selectedId,onSelect]);
 
   const exactStreetUrl='https://www.google.com/maps/@?api=1&map_action=pano&viewpoint='+encodeURIComponent(center.lat+','+center.lng);
-  const streetImage='/api/moodtrip?action=streetviewimage&lat='+encodeURIComponent(center.lat)+'&lng='+encodeURIComponent(center.lng);
-
   return <div className="mtLeafletShell">
     <div className="mtMapLayerSwitch" role="group" aria-label="Map style">
       <button className={layer==='satellite'?'active':''} onClick={()=>setLayer('satellite')}>SATELLITE</button>
@@ -626,9 +624,12 @@ function InteractiveMap({center,places,selectedId,onSelect}){
       {streetState==='loading'&&<div className="mtStreetCameraState"><i/><span>FINDING THE NEAREST STREET-VIEW PANORAMA…</span></div>}
 
       {streetState==='ready'&&streetMeta?.available&&<>
-        <img
-          src={streetImage}
-          alt={'Google Street View near '+(selectedPlace?.name||'selected place')}
+        <iframe
+          src={streetMeta.embedUrl}
+          title={'Google Street View near '+(selectedPlace?.name||'selected place')}
+          loading="lazy"
+          allowFullScreen
+          referrerPolicy="strict-origin-when-cross-origin"
           onError={()=>setStreetState('error')}
         />
         <div className="mtStreetCameraCaption">
