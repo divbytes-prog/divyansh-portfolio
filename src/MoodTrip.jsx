@@ -398,12 +398,27 @@ function InteractiveMap({center,places,selectedId,onSelect}){
   const labelsRef=useRef(null);
   const markerLayerRef=useRef(null);
   const footprintLayerRef=useRef(null);
+
   const [layer,setLayer]=useState('satellite');
   const [zoom,setZoom]=useState(20);
   const [buildingState,setBuildingState]=useState('idle');
+
   const [streetState,setStreetState]=useState('idle');
-  const [streetMeta,setStreetMeta]=useState(null);
+  const [streetImages,setStreetImages]=useState([]);
+  const [streetProviders,setStreetProviders]=useState([]);
+  const [streetProvider,setStreetProvider]=useState('auto');
+  const [streetIndex,setStreetIndex]=useState(0);
+
   const selectedPlace=places.find(p=>p.id===selectedId)||places[0]||null;
+
+  const providerImages=useMemo(()=>{
+    if(streetProvider==='auto')return streetImages;
+    return streetImages.filter(img=>img.providerId===streetProvider);
+  },[streetImages,streetProvider]);
+
+  const streetImage=providerImages.length
+    ?providerImages[Math.min(streetIndex,providerImages.length-1)]
+    :null;
 
   useEffect(()=>{
     if(!rootRef.current||!center||mapRef.current)return;
@@ -465,6 +480,7 @@ function InteractiveMap({center,places,selectedId,onSelect}){
           attribution:'Imagery © Esri, Maxar, Earthstar Geographics'
         }
       ).addTo(map);
+
       labelsRef.current=L.tileLayer(
         'https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
         {
@@ -491,22 +507,26 @@ function InteractiveMap({center,places,selectedId,onSelect}){
   useEffect(()=>{
     if(layer!=='camera'||!center){
       setStreetState('idle');
-      setStreetMeta(null);
       return;
     }
+
     let alive=true;
     setStreetState('loading');
-    setStreetMeta(null);
+    setStreetImages([]);
+    setStreetProviders([]);
+    setStreetProvider('auto');
+    setStreetIndex(0);
 
     (async()=>{
       try{
         const d=await apiJson(
-          '/api/moodtrip?action=streetviewmeta&lat='+encodeURIComponent(center.lat)+'&lng='+encodeURIComponent(center.lng),
+          '/api/moodtrip?action=streetmedia&lat='+encodeURIComponent(center.lat)+'&lng='+encodeURIComponent(center.lng),
           {},
-          9000
+          10000
         );
         if(!alive)return;
-        setStreetMeta(d);
+        setStreetImages(Array.isArray(d.images)?d.images:[]);
+        setStreetProviders(Array.isArray(d.providers)?d.providers:[]);
         setStreetState('ready');
       }catch{
         if(!alive)return;
@@ -516,6 +536,10 @@ function InteractiveMap({center,places,selectedId,onSelect}){
 
     return()=>{alive=false};
   },[layer,center?.lat,center?.lng,selectedId]);
+
+  useEffect(()=>{
+    setStreetIndex(0);
+  },[streetProvider]);
 
   useEffect(()=>{
     const map=mapRef.current;
@@ -541,6 +565,7 @@ function InteractiveMap({center,places,selectedId,onSelect}){
         );
         if(!alive)return;
         const fp=d.footprint;
+
         if(fp?.coordinates?.length>=3){
           const polygon=L.polygon(fp.coordinates,{
             color:'#f1b09a',
@@ -576,6 +601,7 @@ function InteractiveMap({center,places,selectedId,onSelect}){
         map.flyTo([center.lat,center.lng],21,{animate:true,duration:.9});
         setBuildingState('none');
       }
+
       setTimeout(()=>map.invalidateSize(),80);
     })();
 
@@ -603,7 +629,16 @@ function InteractiveMap({center,places,selectedId,onSelect}){
     });
   },[places,selectedId,onSelect]);
 
-  const exactStreetUrl='https://www.google.com/maps/@?api=1&map_action=pano&viewpoint='+encodeURIComponent(center.lat+','+center.lng);
+  const exactGoogleStreetUrl='https://www.google.com/maps/@?api=1&map_action=pano&viewpoint='+encodeURIComponent(center.lat+','+center.lng);
+  const panoramaxExplore='https://explore.panoramax.fr/';
+  const kartaExplore='https://kartaview.org/';
+  const mapillaryExplore='https://www.mapillary.com/app/?lat='+encodeURIComponent(center.lat)+'&lng='+encodeURIComponent(center.lng)+'&z=17';
+
+  function cycleStreet(delta){
+    if(!providerImages.length)return;
+    setStreetIndex(i=>(i+delta+providerImages.length)%providerImages.length);
+  }
+
   return <div className="mtLeafletShell">
     <div className="mtMapLayerSwitch" role="group" aria-label="Map style">
       <button className={layer==='satellite'?'active':''} onClick={()=>setLayer('satellite')}>SATELLITE</button>
@@ -614,54 +649,99 @@ function InteractiveMap({center,places,selectedId,onSelect}){
     <div className={'mtBuildingStatus '+(layer==='camera'?'camera':buildingState)}>
       <i/>
       <span>{layer==='camera'
-        ?(streetState==='loading'?'LOCATING GOOGLE STREET CAMERA':'GOOGLE STREET CAMERA')
+        ?(streetState==='loading'?'SEARCHING OPEN STREET IMAGERY':streetImage?streetImage.provider.toUpperCase()+' STREET PHOTO':'OPEN STREET CAMERA')
         :(buildingState==='loading'?'FINDING BUILDING OUTLINE':buildingState==='found'?'EXACT BUILDING OUTLINE':'EXACT COORDINATE ZOOM')}</span>
     </div>
 
     <div className="mtLeafletMap" ref={rootRef}/>
 
-    {layer==='camera'&&<div className="mtStreetCamera">
-      {streetState==='loading'&&<div className="mtStreetCameraState"><i/><span>FINDING THE NEAREST STREET-VIEW PANORAMA…</span></div>}
+    {layer==='camera'&&<div className="mtStreetCamera mtOpenStreetCamera">
+      {streetState==='loading'&&<div className="mtStreetCameraState"><i/><span>SEARCHING PANORAMAX + KARTAVIEW{streetProviders.some(p=>p.id==='mapillary'&&p.status!=='token-optional')?' + MAPILLARY':''}…</span></div>}
 
-      {streetState==='ready'&&streetMeta?.available&&<>
-        <iframe
-          src={streetMeta.embedUrl}
-          title={'Google Street View near '+(selectedPlace?.name||'selected place')}
-          loading="lazy"
-          allowFullScreen
-          referrerPolicy="strict-origin-when-cross-origin"
-          onError={()=>setStreetState('error')}
-        />
+      {streetState==='ready'&&streetImage&&<>
+        <div className="mtStreetProviderTabs">
+          <button className={streetProvider==='auto'?'active':''} onClick={()=>setStreetProvider('auto')}>BEST MATCH <b>{streetImages.length}</b></button>
+          {streetProviders.map(provider=>{
+            const label=provider.id==='panoramax'?'PANORAMAX':provider.id==='kartaview'?'KARTAVIEW':'MAPILLARY';
+            const disabled=provider.count===0;
+            return <button
+              key={provider.id}
+              className={streetProvider===provider.id?'active':''}
+              onClick={()=>!disabled&&setStreetProvider(provider.id)}
+              disabled={disabled}
+              title={provider.status==='token-optional'?'Optional free Mapillary token can enable this source':''}
+            >{label} <b>{provider.count||0}</b></button>;
+          })}
+        </div>
+
+        <div className="mtStreetMediaFrame">
+          {streetImage.imageUrl
+            ?<img
+              src={streetImage.imageUrl}
+              alt={(streetImage.provider||'Street')+' imagery near '+(selectedPlace?.name||'selected place')}
+              loading="eager"
+              onError={()=>{
+                if(providerImages.length>1)cycleStreet(1);
+                else setStreetState('error');
+              }}
+            />
+            :streetImage.embedUrl
+              ?<iframe src={streetImage.embedUrl} title={'Street imagery near '+(selectedPlace?.name||'selected place')} loading="lazy"/>
+              :null}
+
+          {providerImages.length>1&&<>
+            <button className="mtStreetPrev" onClick={()=>cycleStreet(-1)} aria-label="Previous street image">←</button>
+            <button className="mtStreetNext" onClick={()=>cycleStreet(1)} aria-label="Next street image">→</button>
+          </>}
+        </div>
+
         <div className="mtStreetCameraCaption">
           <div>
-            <span>GOOGLE STREET VIEW</span>
+            <span>{streetImage.provider.toUpperCase()} · {streetImage.isPano?'360° / STREET LEVEL':'STREET LEVEL'}</span>
             <b>{selectedPlace?.name||'SELECTED BUILDING'}</b>
-            <small>{streetMeta.distanceMeters!=null?streetMeta.distanceMeters+' m from selected coordinate':''}{streetMeta.date?' · '+streetMeta.date:''}</small>
+            <small>
+              {streetImage.distanceMeters!=null?streetImage.distanceMeters+' m from selected coordinate':''}
+              {streetImage.aimDelta!=null?' · '+Math.round(streetImage.aimDelta)+'° camera offset':''}
+              {streetImage.capturedAt?' · '+new Date(streetImage.capturedAt).toLocaleDateString():''}
+            </small>
           </div>
-          <a href={streetMeta.openUrl||exactStreetUrl} target="_blank" rel="noreferrer">OPEN 360° ↗</a>
+          <div className="mtStreetCaptionActions">
+            {streetImage.viewerUrl&&<a href={streetImage.viewerUrl} target="_blank" rel="noreferrer">{streetImage.isPano?'OPEN 360°':'OPEN SOURCE'} ↗</a>}
+            <span>{streetIndex+1} / {providerImages.length}</span>
+          </div>
         </div>
       </>}
 
-      {streetState==='ready'&&!streetMeta?.available&&<div className="mtStreetCameraFallback">
-        <span>{streetMeta?.configured?'NO GOOGLE PANORAMA FOUND':'GOOGLE STREET CAMERA'}</span>
-        <h4>{streetMeta?.configured?'No Street View is published close enough to this coordinate.':'One Google Maps key is needed to show the car-camera photo here.'}</h4>
-        <p>{streetMeta?.configured
-          ?'The selected building is still correct. Open Google Street View to check nearby published panoramas.'
-          :'Google requires a Maps Platform API key for embedded Street View imagery. The exact-coordinate Google Street View link still works now.'}</p>
-        <a href={streetMeta?.openUrl||exactStreetUrl} target="_blank" rel="noreferrer">OPEN EXACT GOOGLE STREET VIEW ↗</a>
+      {streetState==='ready'&&!streetImages.length&&<div className="mtStreetCameraFallback">
+        <span>NO OPEN STREET PHOTO WITHIN ~900 M</span>
+        <h4>The building is mapped correctly, but community street imagery has not been uploaded close enough yet.</h4>
+        <p>Satellite + building-outline mode still gives the exact location. You can also check the three open street-imagery networks directly, or use Google Street View externally without embedding it in MoodTrip.</p>
+        <div className="mtOpenCameraLinks">
+          <a href={panoramaxExplore} target="_blank" rel="noreferrer">PANORAMAX ↗</a>
+          <a href={kartaExplore} target="_blank" rel="noreferrer">KARTAVIEW ↗</a>
+          <a href={mapillaryExplore} target="_blank" rel="noreferrer">MAPILLARY ↗</a>
+          <a href={exactGoogleStreetUrl} target="_blank" rel="noreferrer">GOOGLE STREET VIEW ↗</a>
+        </div>
       </div>}
 
       {streetState==='error'&&<div className="mtStreetCameraFallback">
-        <span>STREET CAMERA TEMPORARILY UNAVAILABLE</span>
-        <h4>Open the selected coordinate directly in Google Street View.</h4>
-        <a href={exactStreetUrl} target="_blank" rel="noreferrer">OPEN GOOGLE STREET VIEW ↗</a>
+        <span>STREET IMAGERY SOURCES DID NOT ANSWER</span>
+        <h4>Satellite and exact building-outline mode are still available.</h4>
+        <p>Open-source street imagery can occasionally be sparse or temporarily unavailable. Nothing about the selected place or its coordinates has changed.</p>
+        <div className="mtOpenCameraLinks">
+          <a href={panoramaxExplore} target="_blank" rel="noreferrer">PANORAMAX ↗</a>
+          <a href={kartaExplore} target="_blank" rel="noreferrer">KARTAVIEW ↗</a>
+          <a href={mapillaryExplore} target="_blank" rel="noreferrer">MAPILLARY ↗</a>
+        </div>
       </div>}
     </div>}
 
     <div className="mtMapHint">{layer==='camera'
-      ?'GOOGLE CAR-CAMERA VIEW · TARGETED TO THE SELECTED PLACE COORDINATE'
+      ?'OPEN STREET IMAGERY · NEAREST PHOTO + CAMERA DIRECTION MATCH'
       :'SCROLL / PINCH / DRAG · BUILDING OUTLINE STAYS PRECISE AT MAX AVAILABLE SATELLITE DETAIL'}</div>
-    <div className="mtZoomReadout">{layer==='camera'?'STREET CAMERA':('Z'+Number(zoom).toFixed(zoom%1?1:0)+' · '+(layer==='satellite'?'SATELLITE':'STREET'))}</div>
+    <div className="mtZoomReadout">{layer==='camera'
+      ?(streetImage?streetImage.provider.toUpperCase():'STREET CAMERA')
+      :('Z'+Number(zoom).toFixed(zoom%1?1:0)+' · '+(layer==='satellite'?'SATELLITE':'STREET'))}</div>
   </div>;
 }
 
