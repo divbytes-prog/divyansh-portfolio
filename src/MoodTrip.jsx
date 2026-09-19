@@ -418,7 +418,7 @@ function InteractiveMap({center,places,selectedId,onSelect}){
       zoomDelta:.5,
       minZoom:3,
       maxZoom:22
-    }).setView([center.lat,center.lng],20);
+    }).setView([center.lat,center.lng],19.5);
 
     L.control.zoom({position:'topright'}).addTo(map);
     markerLayerRef.current=L.layerGroup().addTo(map);
@@ -452,7 +452,7 @@ function InteractiveMap({center,places,selectedId,onSelect}){
       baseRef.current=L.tileLayer(
         'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
         {
-          maxNativeZoom:20,
+          maxNativeZoom:19,
           maxZoom:22,
           tileSize:256,
           updateWhenZooming:false,
@@ -463,7 +463,7 @@ function InteractiveMap({center,places,selectedId,onSelect}){
       labelsRef.current=L.tileLayer(
         'https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
         {
-          maxNativeZoom:19,
+          maxNativeZoom:18,
           maxZoom:22,
           pane:'overlayPane',
           opacity:.82,
@@ -492,7 +492,7 @@ function InteractiveMap({center,places,selectedId,onSelect}){
     footprintLayer.clearLayers();
     setBuildingState('loading');
 
-    map.flyTo([center.lat,center.lng],20,{
+    map.flyTo([center.lat,center.lng],19.5,{
       animate:true,
       duration:.8,
       easeLinearity:.2
@@ -534,7 +534,7 @@ function InteractiveMap({center,places,selectedId,onSelect}){
           }
           setBuildingState('found');
         }else{
-          map.flyTo([center.lat,center.lng],21,{animate:true,duration:.9});
+          map.flyTo([center.lat,center.lng],20.5,{animate:true,duration:.9});
           setBuildingState('none');
         }
       }catch{
@@ -1120,12 +1120,12 @@ function App(){
           </>}
 
           {reviewState!=='loading'&&(!reviewData?.configured||!reviewData?.found)&&<div className="mtReviewUnavailable">
-            <span>LIVE GOOGLE REVIEWS</span>
-            <h4>{reviewData?.configured?'Open the verified Google listing.':'Read the current reviews on Google Maps.'}</h4>
-            <p>Ratings and written reviews change constantly. MoodTrip opens the live Google listing for the latest review score and comments instead of showing stale or invented data.</p>
+            <span>GOOGLE REVIEWS</span>
+            <h4>{reviewData?.configured?'Google did not return a matched review set for this place.':'Google reviews are ready to connect.'}</h4>
+            <p>Once a Google Places API key is connected, this exact panel will show the live Google rating, total rating count, review excerpts and official place photos. Until then, the button below opens the verified live Google listing instead of showing fake data.</p>
           </div>}
 
-          <a className="mtGoogleReviewButton" href={reviewData?.reviewsUrl||reviewData?.mapsUrl||googleMapsUrl(reviewPlace)} target="_blank" rel="noreferrer">VIEW LIVE GOOGLE REVIEWS ↗</a>
+          <a className="mtGoogleReviewButton" href={reviewData?.reviewsUrl||reviewData?.mapsUrl||googleMapsUrl(reviewPlace)} target="_blank" rel="noreferrer">OPEN LIVE GOOGLE REVIEWS ↗</a>
         </motion.aside>
       </>}
     </AnimatePresence>
