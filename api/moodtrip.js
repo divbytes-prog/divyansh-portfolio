@@ -326,7 +326,7 @@ async function googleReviews(name,lat,lng){
   const detail=await fetchJson('https://places.googleapis.com/v1/places/'+encodeURIComponent(place.id),{
     headers:{
       'X-Goog-Api-Key':key,
-      'X-Goog-FieldMask':'id,displayName,formattedAddress,rating,userRatingCount,reviews,googleMapsUri,primaryTypeDisplayName'
+      'X-Goog-FieldMask':'id,displayName,formattedAddress,rating,userRatingCount,reviews,googleMapsUri,googleMapsLinks,primaryTypeDisplayName'
     }
   },6500);
 
@@ -340,6 +340,7 @@ async function googleReviews(name,lat,lng){
     ratingCount:detail.userRatingCount||0,
     type:detail.primaryTypeDisplayName?.text||'',
     mapsUrl:detail.googleMapsUri||mapsUrl,
+    reviewsUrl:detail.googleMapsLinks?.reviewsUri||detail.googleMapsUri||mapsUrl,
     reviews:(detail.reviews||[]).slice(0,5).map(r=>({
       author:r.authorAttribution?.displayName||'Google user',
       authorUri:r.authorAttribution?.uri||null,
@@ -348,6 +349,62 @@ async function googleReviews(name,lat,lng){
       relativeTime:r.relativePublishTimeDescription||'',
       text:r.text?.text||r.originalText?.text||''
     }))
+  };
+}
+
+
+function polygonCentroid(coords){
+  if(!coords?.length)return null;
+  const sum=coords.reduce((a,p)=>({lat:a.lat+Number(p.lat||0),lng:a.lng+Number(p.lon||0)}),{lat:0,lng:0});
+  return {lat:sum.lat/coords.length,lng:sum.lng/coords.length};
+}
+
+async function nearestBuildingFootprint(lat,lng,headers){
+  const query='[out:json][timeout:6];way(around:140,'+lat+','+lng+')[building];out geom 30;';
+  const body=new URLSearchParams({data:query}).toString();
+  const providers=[
+    'https://overpass-api.de/api/interpreter',
+    'https://overpass.kumi.systems/api/interpreter',
+    'https://overpass.private.coffee/api/interpreter'
+  ];
+
+  const jobs=providers.map(provider=>fetchJson(provider,{
+    method:'POST',
+    headers:{...headers,'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},
+    body
+  },5500).then(data=>Array.isArray(data?.elements)?data.elements:[]));
+
+  let groups=[];
+  try{
+    const settled=await Promise.allSettled(jobs);
+    groups=settled.flatMap(x=>x.status==='fulfilled'?x.value:[]);
+  }catch{}
+
+  const unique=new Map();
+  groups.forEach(el=>{
+    if(el.type!=='way'||!Array.isArray(el.geometry)||el.geometry.length<3)return;
+    unique.set(el.id,el);
+  });
+
+  const center={lat,lng};
+  const ranked=[...unique.values()].map(el=>{
+    const centroid=polygonCentroid(el.geometry);
+    return {
+      el,
+      centroid,
+      distanceKm:centroid?haversineKm(center,centroid):999
+    };
+  }).sort((a,b)=>a.distanceKm-b.distanceKm);
+
+  const best=ranked[0];
+  if(!best||best.distanceKm>.18)return null;
+
+  return {
+    id:best.el.id,
+    name:best.el.tags?.name||best.el.tags?.['addr:housename']||'Selected building',
+    building:best.el.tags?.building||'yes',
+    distanceMeters:Math.round(best.distanceKm*1000),
+    coordinates:best.el.geometry.map(p=>[Number(p.lat),Number(p.lon)])
   };
 }
 
@@ -362,6 +419,19 @@ export default async function handler(req,res){
   };
 
   try{
+    if(action==='footprint'){
+      const lat=num(req.query.lat,-90,90);
+      const lng=num(req.query.lng,-180,180);
+      if(lat===null||lng===null)return send(res,400,{error:'Invalid coordinates'},0);
+      try{
+        const footprint=await nearestBuildingFootprint(lat,lng,headers);
+        return send(res,200,{footprint},300);
+      }catch(e){
+        console.warn('Building footprint lookup failed',e?.message);
+        return send(res,200,{footprint:null},60);
+      }
+    }
+
     if(action==='suggest'){
       const q=String(req.query.q||'').trim().slice(0,180);
       const lat=num(req.query.lat,-90,90);
