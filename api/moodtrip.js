@@ -552,18 +552,80 @@ function extractPreferredUrls(html=''){
   return [...urls];
 }
 
+
+async function jinaRead(url,headers,timeout=8500){
+  try{
+    return await fetchHtml('https://r.jina.ai/'+url,headers,timeout);
+  }catch{return ''}
+}
+
+function reviewsFromReaderMarkdown(markdown,url){
+  const items=[];
+  const text=String(markdown||'').replace(/\r/g,'');
+  const re=/([1-5])\/5\s*([^\n]{1,90})\n+([^\n]{0,120}?(?:Google|Tripadvisor|review)[^\n]*)\n+([\s\S]{20,420}?)(?=\n+[1-5]\/5|\n+See more reviews|\n+All Google Maps reviews|\n+All Tripadvisor reviews|\n+##|\n+#|$)/gi;
+  let m;
+  while((m=re.exec(text))){
+    const rating=Number(m[1]);
+    const author=decodeHtml(m[2]).trim()||'Public reviewer';
+    const meta=decodeHtml(m[3]).trim();
+    const body=decodeHtml(m[4]).replace(/\s+/g,' ').trim();
+    if(body.length<20)continue;
+    items.push({
+      title:author+' · '+rating+'★',
+      snippet:body.slice(0,360),
+      source:sourceLabel(url),
+      url,
+      rating,
+      author,
+      meta,
+      reviewCount:null,
+      sourceRating:null,
+      businessName:''
+    });
+    if(items.length>=4)break;
+  }
+
+  if(items.length)return items;
+
+  const scoreMatch=text.match(/Review score\s*\n+\s*([1-5](?:\.\d)?)\s*\n+out of 5[\s\S]{0,120}?(\d[\d,]*)\s+reviews/iu);
+  const summaryMatch=text.match(/## Reviews\s*\n+([\s\S]{40,700}?)(?=\n+Review score|\n+##|\n+#)/iu);
+  if(scoreMatch||summaryMatch){
+    const rating=scoreMatch?Number(scoreMatch[1]):null;
+    const count=scoreMatch?Number(scoreMatch[2].replace(/,/g,'')):null;
+    return [{
+      title:(rating?rating+'★ · ':'')+'Public review summary',
+      snippet:decodeHtml(summaryMatch?.[1]||'Public rating data is available on this source.').replace(/\s+/g,' ').trim().slice(0,360),
+      source:sourceLabel(url),
+      url,
+      rating,
+      author:null,
+      reviewCount:count,
+      sourceRating:rating,
+      businessName:''
+    }];
+  }
+
+  return [];
+}
+
 async function discoverReviewUrls(name,address,headers){
   const q='"'+[name,address].filter(Boolean).join(' ')+'" reviews';
   const urls=new Set();
 
+  const googleSearch='https://www.google.com/search?hl=en&num=10&q='+encodeURIComponent(q+' site:wanderlog.com OR site:zomato.com OR site:tripadvisor.in OR site:justdial.com');
   const searchUrls=[
-    'https://www.google.com/search?hl=en&num=10&q='+encodeURIComponent(q+' site:wanderlog.com OR site:zomato.com OR site:tripadvisor.in OR site:justdial.com'),
+    googleSearch,
     'https://www.bing.com/search?count=12&setlang=en-IN&q='+encodeURIComponent(q),
     'https://html.duckduckgo.com/html/?q='+encodeURIComponent(q)
   ];
 
   const pages=await Promise.all(searchUrls.map(u=>fetchHtml(u,headers,5500).catch(()=>'')));
   pages.forEach(html=>extractPreferredUrls(html).forEach(u=>urls.add(u)));
+
+  if(!urls.size){
+    const reader=await jinaRead(googleSearch,headers,9000);
+    extractPreferredUrls(reader).forEach(u=>urls.add(u));
+  }
 
   return [...urls].slice(0,8);
 }
@@ -660,7 +722,9 @@ async function reviewsFromPage(url,headers){
       }];
     }
   }catch{}
-  return [];
+
+  const reader=await jinaRead(url,headers,9000);
+  return reviewsFromReaderMarkdown(reader,url);
 }
 
 async function publicReviewSearch(name,address,lat,lng,headers){
