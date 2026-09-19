@@ -417,7 +417,7 @@ function InteractiveMap({center,places,selectedId,onSelect}){
       zoomSnap:.5,
       zoomDelta:.5,
       minZoom:3,
-      maxZoom:22
+      maxZoom:21
     }).setView([center.lat,center.lng],19.5);
 
     L.control.zoom({position:'topright'}).addTo(map);
@@ -453,7 +453,7 @@ function InteractiveMap({center,places,selectedId,onSelect}){
         'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
         {
           maxNativeZoom:19,
-          maxZoom:22,
+          maxZoom:21,
           tileSize:256,
           updateWhenZooming:false,
           keepBuffer:4,
@@ -464,7 +464,7 @@ function InteractiveMap({center,places,selectedId,onSelect}){
         'https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
         {
           maxNativeZoom:18,
-          maxZoom:22,
+          maxZoom:21,
           pane:'overlayPane',
           opacity:.82,
           attribution:''
@@ -475,7 +475,7 @@ function InteractiveMap({center,places,selectedId,onSelect}){
         'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
         {
           maxNativeZoom:19,
-          maxZoom:22,
+          maxZoom:21,
           keepBuffer:4,
           attribution:'© OpenStreetMap contributors'
         }
@@ -579,7 +579,7 @@ function InteractiveMap({center,places,selectedId,onSelect}){
       <span>{buildingState==='loading'?'FINDING BUILDING OUTLINE':buildingState==='found'?'EXACT BUILDING OUTLINE':'EXACT COORDINATE ZOOM'}</span>
     </div>
     <div className="mtLeafletMap" ref={rootRef}/>
-    <div className="mtMapHint">SCROLL / PINCH / DRAG · SELECT A RESULT TO FLY TO ITS BUILDING</div>
+    <div className="mtMapHint">SCROLL / PINCH / DRAG · BUILDING OUTLINE STAYS PRECISE AT MAX SATELLITE DETAIL</div>
     <div className="mtZoomReadout">Z{Number(zoom).toFixed(zoom%1?1:0)} · {layer==='satellite'?'SATELLITE':'STREET'}</div>
   </div>;
 }
@@ -1106,6 +1106,12 @@ function App(){
           {reviewState==='loading'&&<div className="mtReviewLoading"><i/><b>CHECKING GOOGLE PLACE DETAILS…</b></div>}
 
           {reviewState!=='loading'&&reviewData?.configured&&reviewData?.found&&<>
+            {!!reviewData.photos?.length&&<div className="mtReviewPhotos">
+              {reviewData.photos.map((photo,i)=><figure key={photo.uri+i}>
+                <img src={photo.uri} alt={reviewData.name||reviewPlace.name} loading="lazy"/>
+                {photo.attribution&&<figcaption>Photo: {photo.attribution}</figcaption>}
+              </figure>)}
+            </div>}
             <div className="mtRatingHero">
               <strong>{Number(reviewData.rating||0).toFixed(1)}</strong>
               <div><span>{'★'.repeat(Math.max(0,Math.round(reviewData.rating||0)))}</span><b>{Intl.NumberFormat().format(reviewData.ratingCount||0)} Google ratings</b></div>
@@ -1122,7 +1128,7 @@ function App(){
           {reviewState!=='loading'&&(!reviewData?.configured||!reviewData?.found)&&<div className="mtReviewUnavailable">
             <span>GOOGLE REVIEWS</span>
             <h4>{reviewData?.configured?'Google did not return a matched review set for this place.':'Google reviews are ready to connect.'}</h4>
-            <p>Once a Google Places API key is connected, this exact panel will show the live Google rating, total rating count, review excerpts and official place photos. Until then, the button below opens the verified live Google listing instead of showing fake data.</p>
+            <p>Once a Google Places API key is connected, this exact panel will show the live Google rating, total rating count, review excerpts and official Google place photos like storefront/building images. Until then, the button below opens the verified live Google listing instead of showing fake data.</p>
           </div>}
 
           <a className="mtGoogleReviewButton" href={reviewData?.reviewsUrl||reviewData?.mapsUrl||googleMapsUrl(reviewPlace)} target="_blank" rel="noreferrer">OPEN LIVE GOOGLE REVIEWS ↗</a>
