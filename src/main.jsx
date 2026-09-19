@@ -21,6 +21,45 @@ const projects=[
   {n:'05',title:'IIT Hackathon',tags:'HACKATHON · BUILD · TEAM',desc:'A fast-moving hackathon build where clarity, execution and working software mattered more than polish.',href:'https://github.com/divbytes-prog/iit_hackathon'}
 ];
 
+const resumeProjects=[
+  {
+    n:'01',
+    title:'Real Estate ML Application',
+    summary:'Full-stack ML application for real-estate price prediction with model comparison, analytics and recommendations.',
+    tech:'PYTHON · ML REGRESSION · STREAMLIT · AWS'
+  },
+  {
+    n:'02',
+    title:'India Data Visualization Dashboard',
+    summary:'Interactive dashboard exploring 120+ demographic and socioeconomic parameters with geospatial filtering.',
+    tech:'STREAMLIT · PLOTLY · DATA VIZ'
+  },
+  {
+    n:'03',
+    title:'NLP Application Suite',
+    summary:'Python desktop scripts for sentiment analysis and emoji prediction using custom text processing and rule-based classification.',
+    tech:'PYTHON · NLP · RULE-BASED SYSTEMS'
+  },
+  {
+    n:'04',
+    title:'Startup Analytics Dashboard',
+    summary:'Interactive startup-funding analytics for exploring funding patterns, activity and startup insights.',
+    tech:'STREAMLIT · ANALYTICS · DATA'
+  },
+  {
+    n:'05',
+    title:'Career Assistant',
+    summary:'AI-powered career guidance platform with personalized roadmaps, skill recommendations, salary insights and an AI chatbot.',
+    tech:'REACT · TYPESCRIPT · TAILWIND · AI'
+  },
+  {
+    n:'06',
+    title:'MoodTrip',
+    summary:'Mood-based place recommendation system using emotion detection, clustering and personalized ranking with real-world location data.',
+    tech:'TRANSFORMERS · K-MEANS · RANDOM FOREST · OPENTRIPMAP'
+  }
+];
+
 const stages=[
   ['01','Understand','Reduce the problem until the important part becomes obvious.'],
   ['02','Build','Make the smallest useful version work end to end.'],
@@ -181,6 +220,13 @@ function RealtimeViewport({compact=false}){
   const canvasRef=useRef(null);
   const wrapRef=useRef(null);
   const reduce=useReducedMotion();
+  const[activeProject,setActiveProject]=useState(0);
+
+  useEffect(()=>{
+    if(compact||reduce)return;
+    const id=setInterval(()=>setActiveProject(v=>(v+1)%resumeProjects.length),5200);
+    return()=>clearInterval(id);
+  },[compact,reduce]);
 
   useEffect(()=>{
     const canvas=canvasRef.current;
@@ -288,12 +334,39 @@ function RealtimeViewport({compact=false}){
     };
   },[compact,reduce]);
 
-  return <div ref={wrapRef} className={compact?'renderViewport compact':'renderViewport'} role="img" aria-label="Live generative visualization reacting to pointer movement">
+  const active=resumeProjects[activeProject];
+  return <div ref={wrapRef} className={compact?'renderViewport compact':'renderViewport'} role="group" aria-label={compact?'Live generative visualization':'Interactive resume project stream'}>
     <canvas ref={canvasRef} aria-hidden="true"/>
     {!compact&&<>
-      <div className="renderHud top"><span><i/>LIVE RENDER</span><b>POINTER / REACTIVE</b></div>
-      <div className="renderHud bottom"><span>FRAME STREAM</span><b>DS-RT / 01</b><span>CANVAS</span><b>ACTIVE</b></div>
-      <div className="renderCaption">A small system running in real time, not a prerecorded video.</div>
+      <div className="renderHud top"><span><i/>RESUME PROJECT STREAM</span><b>LIVE / INTERACTIVE</b></div>
+
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={active.n}
+          className="projectStreamCard"
+          initial={{opacity:0,y:18,scale:.97}}
+          animate={{opacity:1,y:0,scale:1}}
+          exit={{opacity:0,y:-12,scale:.98}}
+          transition={{duration:.42,ease:[.16,1,.3,1]}}
+        >
+          <span className="projectStreamIndex">{active.n} / 06</span>
+          <h3>{active.title}</h3>
+          <p>{active.summary}</p>
+          <b>{active.tech}</b>
+        </motion.div>
+      </AnimatePresence>
+
+      <div className="projectStreamTabs" aria-label="Resume projects">
+        {resumeProjects.map((project,i)=><button
+          key={project.n}
+          type="button"
+          className={i===activeProject?'active':''}
+          onClick={()=>setActiveProject(i)}
+          aria-pressed={i===activeProject}
+        ><span>{project.n}</span><em>{project.title}</em></button>)}
+      </div>
+
+      <div className="renderHud bottom"><span>PROJECT DATA</span><b>RESUME / 2026</b><span>CANVAS</span><b>ACTIVE</b></div>
     </>}
   </div>;
 }
@@ -484,7 +557,7 @@ function App(){
         <Reveal className="renderFeature">
           <div className="renderFeatureCopy">
             <span>LIVE / 03A</span>
-            <p>Move your pointer through the frame.</p>
+            <p>Resume projects, rendered as a live interactive stream.</p>
           </div>
           <RealtimeViewport/>
         </Reveal>
