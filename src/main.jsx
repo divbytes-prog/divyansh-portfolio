@@ -590,16 +590,6 @@ function App(){
             <motion.em initial={{opacity:0,y:80,scale:.92}} animate={{opacity:1,y:0,scale:1}} transition={{delay:.48,duration:.9,ease:[.16,1,.3,1]}}>things.</motion.em>
           </h1>
 
-          <motion.figure
-            className="heroPortrait"
-            initial={{opacity:0,x:44,scale:.96}}
-            animate={{opacity:1,x:0,scale:1}}
-            transition={{delay:.62,duration:.85,ease:[.16,1,.3,1]}}
-          >
-            <img src={portraitData} alt="Divyansh Singh in a professional office setting" />
-            <figcaption><span>DIVYANSH SINGH</span><b>CS · ML · BUILDER</b></figcaption>
-          </motion.figure>
-
           <motion.div className="heroBottom" initial={{opacity:0,y:35}} animate={{opacity:1,y:0}} transition={{delay:.7,duration:.75}}>
             <p>Software, machine learning and data products built with curiosity, clear thinking and a bias toward shipping.</p>
             <div className="heroActions">
