@@ -27,48 +27,42 @@ const resumeProjects=[
     title:'Real Estate ML Application',
     summary:'Full-stack ML application for real-estate price prediction with model comparison, analytics and recommendations.',
     tech:'PYTHON · ML REGRESSION · STREAMLIT · AWS',
-    visual:'PREDICTION / MODEL COMPARISON',
-    fact:'Regression models + feature engineering + recommendations'
+    flow:['PROPERTY DATA','FEATURE ENGINEERING','REGRESSION MODELS','STREAMLIT','AWS']
   },
   {
     n:'02',
     title:'India Data Visualization Dashboard',
     summary:'Interactive dashboard exploring 120+ demographic and socioeconomic parameters with geospatial filtering.',
     tech:'STREAMLIT · PLOTLY · DATA VIZ',
-    visual:'PARAMETERS / GEO EXPLORATION',
-    fact:'120+ demographic and socioeconomic parameters'
+    flow:['120+ PARAMETERS','DATA PIPELINE','PLOTLY','GEOSPATIAL MAP','DYNAMIC FILTERS']
   },
   {
     n:'03',
     title:'NLP Application Suite',
     summary:'Python desktop scripts for sentiment analysis and emoji prediction using custom text processing and rule-based classification.',
     tech:'PYTHON · NLP · RULE-BASED SYSTEMS',
-    visual:'TEXT / SENTIMENT PIPELINE',
-    fact:'Sentiment analysis + emoji prediction'
+    flow:['TEXT INPUT','CUSTOM PROCESSING','SENTIMENT','EMOJI PREDICTION','DESKTOP OUTPUT']
   },
   {
     n:'04',
     title:'Startup Analytics Dashboard',
     summary:'Interactive startup-funding analytics for exploring funding patterns, activity and startup insights.',
     tech:'STREAMLIT · ANALYTICS · DATA',
-    visual:'FUNDING / TREND EXPLORATION',
-    fact:'Interactive funding-pattern analysis'
+    flow:['FUNDING DATA','CLEAN / ANALYZE','INSIGHT LAYER','VISUALIZATIONS','STREAMLIT']
   },
   {
     n:'05',
     title:'Career Assistant',
     summary:'AI-powered career guidance platform with personalized roadmaps, skill recommendations, salary insights and an AI chatbot.',
     tech:'REACT · TYPESCRIPT · TAILWIND · AI',
-    visual:'ROADMAP / SOURCE NETWORK',
-    fact:'YouTube + GitHub + Udemy + LinkedIn integrations'
+    flow:['USER GOALS','AI GUIDANCE','ROADMAPS','LIVE SOURCES','AI CHATBOT']
   },
   {
     n:'06',
     title:'MoodTrip',
     summary:'Mood-based place recommendation system using emotion detection, clustering and personalized ranking with real-world location data.',
     tech:'TRANSFORMERS · K-MEANS · RANDOM FOREST · OPENTRIPMAP',
-    visual:'MOOD / CLUSTER / RANK',
-    fact:'Emotion detection + clustering + personalized ranking'
+    flow:['MOOD TEXT','TRANSFORMER','K-MEANS','RANDOM FOREST','OPENTRIPMAP','STREAMLIT']
   }
 ];
 
@@ -244,10 +238,17 @@ function RealtimeViewport({compact=false}){
     const canvas=canvasRef.current;
     const wrap=wrapRef.current;
     if(!canvas||!wrap)return;
+
     const ctx=canvas.getContext('2d');
+    const project=resumeProjects[activeProject];
     let raf=0,visible=true,w=1,h=1,dpr=1;
-    const pointer={x:.66,y:.46,active:false};
-    const accent='#c28d76',sage='#8d927d',paper='#efe4da',ink='#211b18';
+    const pointer={x:.5,y:.5,active:false};
+
+    const compactSeeds=Array.from({length:18},(_,i)=>({
+      a:(i*2.399963)%6.28,
+      r:.14+((i*37)%100)/260,
+      s:.35+((i*17)%80)/100
+    }));
 
     const resize=()=>{
       const rect=wrap.getBoundingClientRect();
@@ -258,184 +259,121 @@ function RealtimeViewport({compact=false}){
       ctx.setTransform(dpr,0,0,dpr,0,0);
     };
 
-    const grid=()=>{
-      ctx.strokeStyle=compact?'rgba(102,83,72,.11)':'rgba(242,238,231,.085)';
-      ctx.lineWidth=1;
-      const gap=compact?36:54;
-      for(let x=gap;x<w;x+=gap){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke()}
-      for(let y=gap;y<h;y+=gap){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke()}
-    };
-
-    const label=(text,x,y,align='left',color='rgba(239,228,218,.52)')=>{
-      ctx.font='500 9px "IBM Plex Mono", monospace';
-      ctx.textAlign=align;ctx.fillStyle=color;ctx.fillText(text,x,y);
-    };
-
-    const node=(x,y,r=5,color=accent)=>{
-      ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fillStyle=color;ctx.fill();
-      ctx.beginPath();ctx.arc(x,y,r+10,0,Math.PI*2);ctx.strokeStyle=color+'44';ctx.stroke();
-    };
-
     const drawCompact=time=>{
-      const cx=w*(pointer.active?pointer.x:.64),cy=h*(pointer.active?pointer.y:.48);
-      const count=18;
-      for(let i=0;i<count;i++){
-        const a=i*2.399963+time*.15;
-        const r=.12+((i*37)%100)/290;
-        const x=w*(.5+Math.cos(a)*r),y=h*(.5+Math.sin(a*1.13)*r*.7);
-        ctx.beginPath();ctx.arc(x,y,2.2+(i%3)*.3,0,Math.PI*2);
-        ctx.fillStyle=i%5===0?sage:'#9a6654';ctx.fill();
-      }
-      node(cx,cy,5,'#9a6654');
-    };
-
-    const drawRealEstate=time=>{
-      const left=w*.08,right=w*.68,top=h*.17,bottom=h*.78;
-      ctx.strokeStyle='rgba(239,228,218,.22)';
-      ctx.beginPath();ctx.moveTo(left,bottom);ctx.lineTo(right,bottom);ctx.lineTo(right,top);ctx.stroke();
-
-      const pts=Array.from({length:22},(_,i)=>{
-        const x=left+(right-left)*(i/21);
-        const base=bottom-(bottom-top)*(i/21)*.78;
-        const y=base+Math.sin(i*1.71+time*.65)*22+(i%3-1)*9;
-        return{x,y};
-      });
-      pts.forEach((p,i)=>node(p.x,p.y,2.6,i%6===0?sage:accent));
+      const cx=w*(pointer.active?pointer.x:.64);
+      const cy=h*(pointer.active?pointer.y:.48);
 
       ctx.beginPath();
-      pts.forEach((p,i)=>{
-        const x=p.x;
-        const y=bottom-(bottom-top)*(i/21)*.76+Math.sin(i*.43+time*.35)*4;
-        i?ctx.lineTo(x,y):ctx.moveTo(x,y);
+      for(let x=0;x<=w;x+=8){
+        const y=h*.54+Math.sin(x*.014+time*1.15)*h*.105+Math.sin(x*.032-time*.62)*h*.035;
+        x===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+      }
+      ctx.strokeStyle='rgba(154,102,84,.72)';
+      ctx.lineWidth=1.4;ctx.stroke();
+
+      compactSeeds.forEach((p,i)=>{
+        const ang=p.a+time*.18*p.s;
+        const drift=Math.sin(time*.8+i)*.025;
+        const x=w*(.5+Math.cos(ang)*(p.r+drift));
+        const y=h*(.5+Math.sin(ang*1.13)*(p.r*.72));
+        ctx.beginPath();ctx.arc(x,y,2.1,0,Math.PI*2);
+        ctx.fillStyle=i%5===0?'#8d927d':'#9a6654';ctx.fill();
       });
-      ctx.strokeStyle=paper;ctx.lineWidth=2;ctx.stroke();
 
-      label('ACTUAL',left,bottom+24);
-      label('PREDICTED',right-6,top-10,'right');
-      label('MODEL COMPARISON',left,top-10,'left',accent);
+      ctx.beginPath();ctx.arc(cx,cy,5,0,Math.PI*2);
+      ctx.fillStyle='#9a6654';ctx.fill();
     };
 
-    const drawIndia=time=>{
-      const cols=8,rows=5;
-      for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
-        const i=r*cols+c;
-        const x=w*.08+c*w*.065;
-        const y=h*.2+r*h*.105;
-        const size=3+((i*13)%9)+Math.sin(time+i)*1.2;
-        ctx.beginPath();ctx.arc(x,y,Math.max(2,size*.48),0,Math.PI*2);
-        ctx.fillStyle=i%7===0?sage:accent;ctx.globalAlpha=.45+((i*17)%45)/100;ctx.fill();ctx.globalAlpha=1;
-      }
-      const bx=w*.62,base=h*.73;
-      for(let i=0;i<7;i++){
-        const bh=h*(.12+((i*19)%45)/100);
-        ctx.fillStyle=i%3===0?sage:accent;
-        ctx.fillRect(bx+i*22,base-bh,10,bh);
-      }
-      label('120+ PARAMETERS',w*.08,h*.16,'left',accent);
-      label('DYNAMIC FILTERS',bx,base+22);
-      label('GEOSPATIAL / DEMOGRAPHIC',bx,h*.16,'left',sage);
-    };
+    const drawArchitecture=time=>{
+      const flow=project.flow;
+      const left=w<700?w*.08:w*.07;
+      const right=w<700?w*.92:w*.63;
+      const lineY=w<700?h*.31:h*.34;
+      const positions=flow.map((_,i)=>({
+        x:left+(right-left)*(i/Math.max(1,flow.length-1)),
+        y:lineY+Math.sin(i*1.7)*18
+      }));
 
-    const drawNlp=time=>{
-      const words=['TEXT','TOKEN','SENTIMENT','EMOJI'];
-      const xs=[w*.08,w*.28,w*.50,w*.72];
-      xs.forEach((x,i)=>{
-        const y=h*.42+Math.sin(time*1.2+i)*8;
-        ctx.fillStyle=i===2?sage:accent;
-        ctx.fillRect(x-28,y-14,56,28);
-        label(words[i],x,y+4,'center','#211b18');
-        if(i<xs.length-1){
-          ctx.beginPath();ctx.moveTo(x+30,y);ctx.lineTo(xs[i+1]-34,h*.42+Math.sin(time*1.2+i+1)*8);
-          ctx.strokeStyle='rgba(239,228,218,.34)';ctx.stroke();
-        }
+      positions.forEach((p,i)=>{
+        if(i===0)return;
+        const prev=positions[i-1];
+        ctx.beginPath();
+        ctx.moveTo(prev.x,prev.y);
+        ctx.bezierCurveTo(
+          prev.x+(p.x-prev.x)*.45,prev.y,
+          prev.x+(p.x-prev.x)*.55,p.y,
+          p.x,p.y
+        );
+        ctx.strokeStyle='rgba(242,238,231,.15)';
+        ctx.lineWidth=1.2;
+        ctx.stroke();
       });
-      const gaugeX=w*.67,gaugeY=h*.68;
-      ctx.beginPath();ctx.arc(gaugeX,gaugeY,46,Math.PI,Math.PI*2);ctx.strokeStyle='rgba(239,228,218,.22)';ctx.lineWidth=8;ctx.stroke();
-      ctx.beginPath();ctx.arc(gaugeX,gaugeY,46,Math.PI,Math.PI*(1.35+.12*Math.sin(time)));ctx.strokeStyle=accent;ctx.stroke();
-      label('RULE-BASED CLASSIFICATION',w*.08,h*.19,'left',accent);
-      label('SENTIMENT',gaugeX,gaugeY+24,'center');
-    };
 
-    const drawStartup=time=>{
-      const left=w*.08,right=w*.70,base=h*.72;
-      const bars=10;
-      for(let i=0;i<bars;i++){
-        const x=left+i*((right-left)/(bars-1));
-        const bh=h*(.10+((i*23)%42)/100)+Math.sin(time*.8+i)*7;
-        ctx.fillStyle=i%4===0?sage:accent;
-        ctx.fillRect(x,base-bh,11,bh);
-      }
+      const total=Math.max(1,positions.length-1);
+      const progress=(time*.115)%1;
+      const segmentFloat=progress*total;
+      const segment=Math.min(total-1,Math.floor(segmentFloat));
+      const local=segmentFloat-segment;
+      const a=positions[segment],b=positions[segment+1];
+      const sx=a.x+(b.x-a.x)*local;
+      const sy=a.y+(b.y-a.y)*local;
+
+      ctx.beginPath();ctx.arc(sx,sy,4.2,0,Math.PI*2);
+      ctx.fillStyle='#efe4da';ctx.fill();
+      ctx.beginPath();ctx.arc(sx,sy,13,0,Math.PI*2);
+      ctx.strokeStyle='rgba(239,228,218,.28)';ctx.stroke();
+
+      const p2=(progress+.46)%1;
+      const sf2=p2*total;
+      const s2=Math.min(total-1,Math.floor(sf2));
+      const l2=sf2-s2;
+      const a2=positions[s2],b2=positions[s2+1];
       ctx.beginPath();
-      for(let x=left;x<=right;x+=10){
-        const p=(x-left)/(right-left);
-        const y=h*.52-Math.sin(p*7+time*.55)*h*.09-p*h*.11;
-        x===left?ctx.moveTo(x,y):ctx.lineTo(x,y);
-      }
-      ctx.strokeStyle=paper;ctx.lineWidth=2;ctx.stroke();
-      label('FUNDING PATTERNS',left,h*.17,'left',accent);
-      label('ACTIVITY / INSIGHTS',right,h*.17,'right',sage);
-    };
+      ctx.arc(a2.x+(b2.x-a2.x)*l2,a2.y+(b2.y-a2.y)*l2,2.8,0,Math.PI*2);
+      ctx.fillStyle='#8d927d';ctx.fill();
 
-    const drawCareer=time=>{
-      const center={x:w*.46,y:h*.48};
-      const sources=[
-        ['YOUTUBE',w*.12,h*.24],['GITHUB',w*.13,h*.69],['UDEMY',w*.72,h*.24],['LINKEDIN',w*.76,h*.67]
-      ];
-      sources.forEach(([name,x,y],i)=>{
-        ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(center.x,center.y);ctx.strokeStyle='rgba(239,228,218,.18)';ctx.stroke();
-        node(x,y,4,i%2?sage:accent);label(name,x,y-16,'center');
-      });
-      node(center.x,center.y,7,paper);
-      label('CAREER ROADMAP',center.x,center.y+28,'center',accent);
-      const steps=['SKILLS','SALARY','LEARNING','JOBS'];
-      steps.forEach((name,i)=>{
-        const x=w*.36+i*w*.11,y=h*.79+Math.sin(time+i)*3;
-        ctx.fillStyle=i%2?sage:accent;ctx.fillRect(x-22,y-12,44,24);
-        label(name,x,y+3,'center','#211b18');
-      });
-      label('REAL-TIME SOURCE INTEGRATION',w*.08,h*.16,'left',accent);
-    };
+      positions.forEach((p,i)=>{
+        const px=pointer.x*w,py=pointer.y*h;
+        const dist=pointer.active?Math.hypot(p.x-px,p.y-py):999;
+        const hot=dist<72;
+        const pulse=reduce?0:Math.sin(time*1.7+i*.8)*1.2;
 
-    const drawMoodTrip=time=>{
-      const centers=[
-        {x:w*.18,y:h*.33,c:accent},{x:w*.42,y:h*.48,c:sage},{x:w*.63,y:h*.30,c:'#d0aa96'}
-      ];
-      centers.forEach((c,idx)=>{
-        for(let i=0;i<10;i++){
-          const a=i*.92+time*.18*(idx+1);
-          const rr=18+(i%4)*9;
-          const x=c.x+Math.cos(a)*rr,y=c.y+Math.sin(a*1.1)*rr;
-          ctx.beginPath();ctx.arc(x,y,3,0,Math.PI*2);ctx.fillStyle=c.c;ctx.globalAlpha=.8;ctx.fill();ctx.globalAlpha=1;
-        }
-        ctx.beginPath();ctx.arc(c.x,c.y,52,0,Math.PI*2);ctx.strokeStyle=c.c+'44';ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(p.x,p.y,(hot?8:5)+pulse,0,Math.PI*2);
+        ctx.fillStyle=hot?'#efe4da':'#c28d76';ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(p.x,p.y,(hot?24:16)+pulse,0,Math.PI*2);
+        ctx.strokeStyle=hot?'rgba(239,228,218,.42)':'rgba(194,141,118,.22)';
+        ctx.stroke();
+
+        ctx.fillStyle=hot?'#f5ece6':'rgba(239,228,218,.68)';
+        ctx.font=(hot?'500 ':'400 ')+(w<700?'8px':'9px')+' "IBM Plex Mono", monospace';
+        ctx.textAlign='center';
+        ctx.fillText(String(i+1).padStart(2,'0'),p.x,p.y+34);
       });
-      const rankX=w*.72,rankY=h*.52;
-      for(let i=0;i<4;i++){
-        ctx.fillStyle=i===0?accent:'rgba(239,228,218,.18)';
-        ctx.fillRect(rankX,rankY+i*28,90-i*12,10);
+
+      if(pointer.active){
+        const px=pointer.x*w,py=pointer.y*h;
+        ctx.beginPath();ctx.arc(px,py,30,0,Math.PI*2);
+        ctx.strokeStyle='rgba(239,228,218,.14)';ctx.stroke();
       }
-      label('EMOTION CLUSTERS',w*.08,h*.15,'left',accent);
-      label('PLACE RANKING',rankX,rankY-18,'left',sage);
-      label('MOOD → VIBE → PLACE',w*.43,h*.84,'center');
     };
 
     const draw=t=>{
       const time=(t||0)*.001;
       ctx.clearRect(0,0,w,h);
-      ctx.fillStyle=compact?'#f5eee7':ink;
+      ctx.fillStyle=compact?'#f5eee7':'#211b18';
       ctx.fillRect(0,0,w,h);
-      grid();
 
-      if(compact) drawCompact(time);
-      else {
-        [drawRealEstate,drawIndia,drawNlp,drawStartup,drawCareer,drawMoodTrip][activeProject](time);
-        if(pointer.active){
-          const px=pointer.x*w,py=pointer.y*h;
-          ctx.beginPath();ctx.arc(px,py,28,0,Math.PI*2);
-          ctx.strokeStyle='rgba(239,228,218,.2)';ctx.stroke();
-          ctx.beginPath();ctx.arc(px,py,3,0,Math.PI*2);ctx.fillStyle=paper;ctx.fill();
-        }
-      }
+      ctx.strokeStyle=compact?'rgba(102,83,72,.12)':'rgba(242,238,231,.07)';
+      ctx.lineWidth=1;
+      const gap=compact?36:54;
+      for(let x=gap;x<w;x+=gap){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke()}
+      for(let y=gap;y<h;y+=gap){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke()}
+
+      if(compact)drawCompact(time);
+      else drawArchitecture(time);
 
       if(!reduce&&visible)raf=requestAnimationFrame(draw);
     };
@@ -469,10 +407,20 @@ function RealtimeViewport({compact=false}){
 
   const active=resumeProjects[activeProject];
 
-  return <div ref={wrapRef} className={compact?'renderViewport compact':'renderViewport'} role="group" aria-label={compact?'Live generative visualization':'Interactive project systems view'}>
+  return <div ref={wrapRef} className={compact?'renderViewport compact':'renderViewport'} role="group" aria-label={compact?'Live generative visualization':'Interactive project architecture viewer'}>
     <canvas ref={canvasRef} aria-hidden="true"/>
     {!compact&&<>
-      <div className="renderHud top"><span><i/>PROJECT SYSTEMS VIEW</span><b>{active.visual}</b></div>
+      <div className="renderHud top"><span><i/>PROJECT ARCHITECTURE</span><b>LIVE SIGNAL / {active.n}</b></div>
+
+      <div className="projectArchitecture" aria-label={active.title+' project flow'}>
+        <span>HOW IT WORKS</span>
+        <div>
+          {active.flow.map((step,i)=><React.Fragment key={step}>
+            <b>{step}</b>
+            {i<active.flow.length-1&&<i>→</i>}
+          </React.Fragment>)}
+        </div>
+      </div>
 
       <AnimatePresence mode="wait">
         <motion.div
@@ -487,7 +435,6 @@ function RealtimeViewport({compact=false}){
           <h3>{active.title}</h3>
           <p>{active.summary}</p>
           <b>{active.tech}</b>
-          <small>{active.fact}</small>
         </motion.div>
       </AnimatePresence>
 
@@ -501,7 +448,7 @@ function RealtimeViewport({compact=false}){
         ><span>{project.n}</span><em>{project.title}</em></button>)}
       </div>
 
-      <div className="renderHud bottom"><span>VISUAL MODEL</span><b>{active.visual}</b><span>SOURCE</span><b>RESUME</b></div>
+      <div className="renderHud bottom"><span>INPUT → PROCESS → OUTPUT</span><b>{active.tech}</b></div>
     </>}
   </div>;
 }
