@@ -278,7 +278,7 @@ async function geocodeCity(query){
 async function overpassPlaces(coords,radiusKm,mood){
   const d=await apiJson('/api/moodtrip?action=places&lat='+encodeURIComponent(coords.lat)+'&lng='+encodeURIComponent(coords.lng)+'&radiusKm='+encodeURIComponent(radiusKm)+'&mood='+encodeURIComponent(mood),{},9000);
   const seen=new Set();
-  return (d.elements||[]).map(el=>{
+  const places=(d.elements||[]).map(el=>{
     const lat=Number(el.lat??el.center?.lat),lng=Number(el.lon??el.center?.lon);
     const tags=el.tags||{};
     const name=tags.name||tags['name:en'];
@@ -297,6 +297,7 @@ async function overpassPlaces(coords,radiusKm,mood){
       osmType:el.type,osmId:el.id
     };
   }).filter(Boolean);
+  return {places,provider:d.provider||'OpenStreetMap'};
 }
 
 function loadGooglePlaces(key){
@@ -545,8 +546,9 @@ function App(){
       if(raw?.length){
         setProvider('Google Places');
       }else{
-        raw=await overpassPlaces(coords,radiusKm,mood);
-        setProvider('OpenStreetMap');
+        const fallback=await overpassPlaces(coords,radiusKm,mood);
+        raw=fallback.places;
+        setProvider(fallback.provider);
       }
 
       const ranked=rankPlacesFast(raw||[],mood,vector);
