@@ -453,6 +453,7 @@ function RealtimeViewport({compact=false}){
   </div>;
 }
 
+// Hero live signal: restored radar visual
 function LiveSignal(){
   const reduce=useReducedMotion();
   return <motion.div
