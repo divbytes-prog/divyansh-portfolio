@@ -441,3 +441,435 @@ a{text-decoration:none}
     display:none;
   }
 }
+
+
+/* portfolio-grade ambient background */
+.mtHeroFx{
+  position:absolute;
+  inset:0;
+  z-index:0;
+  pointer-events:none;
+  opacity:.78;
+  overflow:hidden;
+}
+.mtHeroFx>*{
+  width:100%;
+  height:100%;
+}
+.mtHeroFxVeil{
+  position:absolute;
+  inset:0;
+  z-index:1;
+  pointer-events:none;
+  background:
+    linear-gradient(90deg,rgba(242,238,231,.94) 0%,rgba(242,238,231,.86) 44%,rgba(242,238,231,.38) 74%,rgba(242,238,231,.12) 100%),
+    linear-gradient(180deg,rgba(242,238,231,.08),rgba(242,238,231,.28));
+}
+.mtHeroBlock,.mtHeroStudio,.mtMarginNote,.mtHeroCopy,.mtLiveSignal{z-index:3}
+
+/* detailed address / building search */
+.mtLocationSearchWrap{
+  position:relative;
+  z-index:12;
+}
+.mtManualLocation{
+  position:relative;
+  z-index:3;
+}
+.mtManualLocation input{
+  font-size:12px;
+}
+.mtLocationSuggestions{
+  position:absolute;
+  z-index:20;
+  left:0;
+  right:0;
+  top:calc(100% + 6px);
+  max-height:360px;
+  overflow:auto;
+  border:1px solid #aa9d93;
+  background:rgba(251,248,242,.985);
+  box-shadow:12px 12px 0 rgba(30,25,22,.12);
+  backdrop-filter:blur(12px);
+}
+.mtLocationSuggestions>button{
+  width:100%;
+  border:0;
+  border-bottom:1px solid var(--line);
+  background:transparent;
+  padding:12px 13px;
+  display:grid;
+  grid-template-columns:28px minmax(0,1fr) auto;
+  gap:10px;
+  align-items:start;
+  text-align:left;
+  color:var(--ink);
+}
+.mtLocationSuggestions>button:last-of-type{
+  border-bottom:0;
+}
+.mtLocationSuggestions>button:hover,
+.mtLocationSuggestions>button:focus-visible{
+  background:#e8ded5;
+  outline:none;
+}
+.mtLocationSuggestions>button>span{
+  padding-top:2px;
+  font:500 8px 'IBM Plex Mono';
+  color:var(--clay);
+}
+.mtLocationSuggestions>button div{
+  min-width:0;
+}
+.mtLocationSuggestions>button b,
+.mtLocationSuggestions>button small{
+  display:block;
+}
+.mtLocationSuggestions>button b{
+  font-size:12px;
+  line-height:1.25;
+  overflow-wrap:anywhere;
+}
+.mtLocationSuggestions>button small{
+  margin-top:4px;
+  color:#6d655f;
+  font-size:9px;
+  line-height:1.45;
+  overflow-wrap:anywhere;
+}
+.mtLocationSuggestions>button em{
+  max-width:110px;
+  font:500 7px 'IBM Plex Mono';
+  font-style:normal;
+  text-transform:uppercase;
+  color:#8a7d74;
+  text-align:right;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.mtSuggestStatus{
+  padding:14px;
+  font:500 8px 'IBM Plex Mono';
+  color:#776d66;
+}
+
+/* full interactive Leaflet map */
+.mtLeafletShell{
+  position:relative;
+  width:100%;
+  height:560px;
+  margin-top:14px;
+  overflow:hidden;
+  border:1px solid var(--line);
+  background:#d8d1c7;
+}
+.mtLeafletMap{
+  width:100%;
+  height:100%;
+  z-index:1;
+  background:#d8d1c7;
+}
+.mtLeafletShell .leaflet-control-container{
+  font-family:'IBM Plex Mono',monospace;
+}
+.mtLeafletShell .leaflet-control-zoom{
+  margin-top:12px!important;
+  margin-right:12px!important;
+  border:1px solid var(--line)!important;
+  box-shadow:4px 4px 0 rgba(23,20,17,.12)!important;
+}
+.mtLeafletShell .leaflet-control-zoom a{
+  width:38px!important;
+  height:36px!important;
+  line-height:34px!important;
+  border:0!important;
+  border-radius:0!important;
+  background:rgba(251,248,242,.95)!important;
+  color:var(--ink)!important;
+  font-family:'Bricolage Grotesque',sans-serif!important;
+}
+.mtLeafletShell .leaflet-control-zoom a+a{
+  border-top:1px solid var(--line)!important;
+}
+.mtLeafletShell .leaflet-control-attribution{
+  background:rgba(251,248,242,.88)!important;
+  color:#5c554f!important;
+  font-size:8px!important;
+}
+.mtLeafletShell .leaflet-control-attribution a{
+  color:var(--clay-deep)!important;
+}
+.mtLeafletMarkerWrap{
+  background:transparent!important;
+  border:0!important;
+}
+.mtLeafletMarker{
+  position:relative;
+  width:30px;
+  height:30px;
+  border:2px solid rgba(255,255,255,.92);
+  border-radius:50%;
+  background:var(--ink);
+  color:white;
+  display:grid;
+  place-items:center;
+  box-shadow:0 5px 18px rgba(0,0,0,.38);
+  transition:transform .18s ease,background .18s ease;
+}
+.mtLeafletMarker.active{
+  transform:scale(1.18);
+  background:var(--clay);
+}
+.mtLeafletMarker span{
+  font:500 8px 'IBM Plex Mono';
+}
+.mtLeafletMarker b{
+  position:absolute;
+  left:39px;
+  top:50%;
+  transform:translateY(-50%);
+  width:max-content;
+  max-width:240px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  padding:8px 10px;
+  background:rgba(23,20,17,.94);
+  border:1px solid rgba(255,255,255,.36);
+  color:white;
+  box-shadow:6px 6px 0 rgba(23,20,17,.2);
+  font:500 8px 'IBM Plex Mono';
+  letter-spacing:.03em;
+}
+.mtMapLayerSwitch{
+  z-index:500;
+}
+.mtMapHint{
+  position:absolute;
+  z-index:500;
+  left:12px;
+  bottom:12px;
+  max-width:55%;
+  padding:6px 8px;
+  background:rgba(23,20,17,.86);
+  color:white;
+  font:500 7px 'IBM Plex Mono';
+  letter-spacing:.04em;
+  pointer-events:none;
+}
+.mtZoomReadout{
+  z-index:500;
+}
+
+/* review experience */
+.mtReviewSheet{
+  position:fixed;
+  z-index:101;
+  right:0;
+  top:0;
+  width:min(520px,94vw);
+  height:100dvh;
+  overflow:auto;
+  background:var(--paper);
+  border-left:1px solid var(--line);
+  box-shadow:-30px 0 80px rgba(0,0,0,.16);
+  padding:24px;
+  display:flex;
+  flex-direction:column;
+}
+.mtReviewHead{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:18px;
+  padding-bottom:20px;
+  border-bottom:1px solid var(--line);
+}
+.mtReviewHead>div{
+  min-width:0;
+}
+.mtReviewHead span{
+  font:500 8px 'IBM Plex Mono';
+  color:var(--clay);
+}
+.mtReviewHead h3{
+  margin:8px 0 5px;
+  font-size:clamp(28px,4vw,46px);
+  line-height:.95;
+  letter-spacing:-.05em;
+  overflow-wrap:anywhere;
+}
+.mtReviewHead p{
+  margin:0;
+  color:#706760;
+  font-size:10px;
+  line-height:1.5;
+}
+.mtReviewHead>button{
+  border:0;
+  background:none;
+  font-size:30px;
+  line-height:1;
+}
+.mtReviewLoading{
+  min-height:240px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-direction:column;
+  gap:16px;
+  font:500 8px 'IBM Plex Mono';
+  color:#736a63;
+}
+.mtReviewLoading i{
+  width:30px;
+  height:30px;
+  border:2px solid var(--line);
+  border-top-color:var(--clay);
+  border-radius:50%;
+  animation:mtSpin .8s linear infinite;
+}
+@keyframes mtSpin{to{transform:rotate(360deg)}}
+.mtRatingHero{
+  display:grid;
+  grid-template-columns:auto 1fr;
+  gap:22px;
+  align-items:center;
+  padding:28px 0;
+  border-bottom:1px solid var(--line);
+}
+.mtRatingHero>strong{
+  font:500 72px/.85 'Fraunces';
+  color:var(--clay-deep);
+}
+.mtRatingHero div span,
+.mtRatingHero div b{
+  display:block;
+}
+.mtRatingHero div span{
+  font-size:18px;
+  letter-spacing:.08em;
+  color:#a87838;
+}
+.mtRatingHero div b{
+  margin-top:7px;
+  font:500 9px 'IBM Plex Mono';
+  color:#6b625b;
+}
+.mtReviewList article{
+  padding:20px 0;
+  border-bottom:1px solid var(--line);
+}
+.mtReviewList article>div{
+  display:flex;
+  justify-content:space-between;
+  gap:16px;
+}
+.mtReviewList article>div b{
+  font-size:12px;
+}
+.mtReviewList article>div span,
+.mtReviewList article small{
+  font:500 8px 'IBM Plex Mono';
+  color:var(--clay-deep);
+}
+.mtReviewList article small{
+  display:block;
+  margin-top:5px;
+  color:#8a817a;
+}
+.mtReviewList article p{
+  margin:12px 0 0;
+  font-size:12px;
+  line-height:1.65;
+  color:#5f5852;
+}
+.mtReviewUnavailable{
+  margin:28px 0;
+  padding:22px;
+  border:1px solid var(--line);
+  background:#e8ded5;
+}
+.mtReviewUnavailable span{
+  font:500 8px 'IBM Plex Mono';
+  color:var(--clay);
+}
+.mtReviewUnavailable h4{
+  margin:18px 0 8px;
+  font-size:28px;
+  letter-spacing:-.04em;
+}
+.mtReviewUnavailable p{
+  margin:0;
+  color:#675f59;
+  font-size:12px;
+  line-height:1.65;
+}
+.mtGoogleReviewButton{
+  margin-top:auto;
+  min-height:58px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:var(--ink);
+  color:white;
+  border:1px solid var(--ink);
+  box-shadow:8px 8px 0 var(--clay);
+  font:500 9px 'IBM Plex Mono';
+  letter-spacing:.05em;
+}
+.mtPlaceActions{
+  gap:10px;
+}
+.mtPlaceActions button:nth-child(2){
+  color:#7b533f;
+  border-bottom:1px solid #7b533f;
+}
+
+/* extra responsiveness */
+@media(max-width:900px){
+  .mtHeroFx{
+    opacity:.48;
+  }
+  .mtHeroFxVeil{
+    background:linear-gradient(180deg,rgba(242,238,231,.88),rgba(242,238,231,.68));
+  }
+  .mtLeafletShell{
+    height:430px;
+  }
+  .mtLocationSuggestions{
+    max-height:300px;
+  }
+}
+@media(max-width:620px){
+  .mtHeroFx{
+    opacity:.3;
+  }
+  .mtLocationSuggestions>button{
+    grid-template-columns:24px minmax(0,1fr);
+  }
+  .mtLocationSuggestions>button em{
+    display:none;
+  }
+  .mtLeafletShell{
+    height:340px;
+  }
+  .mtLeafletMarker b{
+    max-width:145px;
+    font-size:7px;
+  }
+  .mtMapHint{
+    display:none;
+  }
+  .mtReviewSheet{
+    width:100vw;
+    padding:18px;
+  }
+  .mtRatingHero>strong{
+    font-size:60px;
+  }
+}
+@media(prefers-reduced-motion:reduce){
+  .mtReviewLoading i{animation:none}
+}
