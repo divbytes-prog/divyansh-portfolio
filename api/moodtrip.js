@@ -476,32 +476,70 @@ function parseDuckResults(html){
   return results;
 }
 
+function parseBingResults(html){
+  const results=[];
+  const blocks=String(html).split(/<li[^>]+class="[^"]*b_algo[^"]*"[^>]*>/i).slice(1);
+  for(const block of blocks){
+    const titleMatch=block.match(/<h2[^>]*>\s*<a[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/i);
+    const snippetMatch=block.match(/<p[^>]*>([\s\S]*?)<\/p>/i);
+    if(!titleMatch)continue;
+    const url=decodeHtml(titleMatch[1]);
+    const title=decodeHtml(titleMatch[2]);
+    const snippet=decodeHtml(snippetMatch?.[1]||'');
+    if(!url||!title)continue;
+    results.push({title,url,snippet,source:sourceLabel(url)});
+    if(results.length>=12)break;
+  }
+  return results;
+}
+
+async function searchBing(q,headers){
+  try{
+    const r=await fetch('https://www.bing.com/search?count=12&setlang=en-IN&q='+encodeURIComponent(q),{
+      headers:{
+        ...headers,
+        'Accept':'text/html,application/xhtml+xml',
+        'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36'
+      }
+    });
+    if(!r.ok)return [];
+    return parseBingResults(await r.text());
+  }catch{return []}
+}
+
 async function publicReviewSearch(name,address,lat,lng,headers){
-  const locationBits=[address,Number.isFinite(lat)&&Number.isFinite(lng)?(lat.toFixed(5)+','+lng.toFixed(5)):''].filter(Boolean).join(' ');
   const queries=[
-    '"'+name+'" '+locationBits+'" reviews rating',
-    '"'+name+'" '+address+'" review Justdial Tripadvisor Restaurant Guru Magicpin'
+    '"'+[name,address].filter(Boolean).join(' ')+'" reviews',
+    '"'+name+'" '+address+'" Zomato Tripadvisor Wanderlog Justdial Restaurant Guru reviews'
   ];
 
-  const jobs=queries.map(q=>fetch('https://html.duckduckgo.com/html/?q='+encodeURIComponent(q),{
-    headers:{
-      ...headers,
-      'Accept':'text/html,application/xhtml+xml',
-      'User-Agent':'Mozilla/5.0 (compatible; MoodTripReviewFinder/1.0)'
-    }
-  }).then(async r=>{
-    if(!r.ok)throw new Error('Search '+r.status);
-    return parseDuckResults(await r.text());
-  }).catch(()=>[]));
+  const jobs=[];
+  for(const q of queries){
+    jobs.push(
+      fetch('https://html.duckduckgo.com/html/?q='+encodeURIComponent(q),{
+        headers:{
+          ...headers,
+          'Accept':'text/html,application/xhtml+xml',
+          'User-Agent':'Mozilla/5.0 (compatible; MoodTripReviewFinder/1.1)'
+        }
+      }).then(async r=>r.ok?parseDuckResults(await r.text()):[]).catch(()=>[])
+    );
+    jobs.push(searchBing(q,headers));
+  }
 
   const groups=await Promise.all(jobs);
   const preferred=[
-    'justdial','tripadvisor','restaurant-guru','zomato','magicpin','yelp',
-    'foursquare','mouthshut','facebook','wanderlog'
+    'zomato','tripadvisor','wanderlog','justdial','restaurant-guru','magicpin',
+    'yelp','foursquare','mouthshut','facebook'
   ];
+  const disallowed=['youtube','instagram','linkedin','wikipedia'];
+  const firstToken=name.toLowerCase().split(/\s+/)[0]||'';
 
   const seen=new Set();
   const all=groups.flat().filter(item=>{
+    let host='';
+    try{host=new URL(item.url).hostname.toLowerCase()}catch{}
+    if(disallowed.some(x=>host.includes(x)))return false;
     const key=item.url.split('#')[0];
     if(seen.has(key))return false;
     seen.add(key);
@@ -512,12 +550,14 @@ async function publicReviewSearch(name,address,lat,lng,headers){
     const host=item.url.toLowerCase();
     const text=(item.title+' '+item.snippet).toLowerCase();
     const preferredIndex=preferred.findIndex(x=>host.includes(x));
-    let score=preferredIndex>=0?80-preferredIndex*3:0;
-    if(text.includes('review'))score+=18;
-    if(text.includes('rating')||/\b[1-5]\.[0-9]\b/.test(text))score+=12;
-    if(text.includes(name.toLowerCase().split(' ')[0]))score+=8;
+    let score=preferredIndex>=0?120-preferredIndex*4:0;
+    if(text.includes('review'))score+=24;
+    if(text.includes('rating')||/\b[1-5]\.[0-9]\b/.test(text))score+=18;
+    if(firstToken&&text.includes(firstToken))score+=14;
+    if(address&&text.includes(address.toLowerCase().split(',')[0]))score+=10;
+    if(/google|tripadvisor|dining|customer|reviewer|stars|rated/i.test(item.snippet))score+=8;
     return {...item,score};
-  }).sort((a,b)=>b.score-a.score);
+  }).filter(item=>item.score>=24).sort((a,b)=>b.score-a.score);
 
   return ranked.slice(0,6).map(({score,...item})=>item);
 }
