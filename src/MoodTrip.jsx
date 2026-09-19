@@ -607,6 +607,8 @@ function App(){
   const [suggestState,setSuggestState]=useState('idle');
   const [suggestOpen,setSuggestOpen]=useState(false);
   const [reviewPlace,setReviewPlace]=useState(null);
+  const [publicReviews,setPublicReviews]=useState([]);
+  const [publicReviewState,setPublicReviewState]=useState('idle');
   const [localReviews,setLocalReviews]=useState([]);
   const [reviewDraftRating,setReviewDraftRating]=useState(5);
   const [reviewDraftText,setReviewDraftText]=useState('');
@@ -728,16 +730,35 @@ function App(){
     ].join('|').toLowerCase());
   }
 
-  function openReviews(place){
+  async function openReviews(place){
     if(!place)return;
     setReviewPlace(place);
     setReviewDraftRating(5);
     setReviewDraftText('');
+    setPublicReviews([]);
+    setPublicReviewState('loading');
+
     try{
       const saved=JSON.parse(localStorage.getItem(reviewStorageKey(place))||'[]');
       setLocalReviews(Array.isArray(saved)?saved:[]);
     }catch{
       setLocalReviews([]);
+    }
+
+    try{
+      const d=await apiJson(
+        '/api/moodtrip?action=webreviews&name='+encodeURIComponent(place.name)+
+        '&address='+encodeURIComponent(place.address||'')+
+        '&lat='+encodeURIComponent(place.lat)+
+        '&lng='+encodeURIComponent(place.lng),
+        {},
+        8500
+      );
+      setPublicReviews(Array.isArray(d.items)?d.items:[]);
+      setPublicReviewState('ready');
+    }catch{
+      setPublicReviews([]);
+      setPublicReviewState('error');
     }
   }
 
@@ -872,7 +893,15 @@ function App(){
 
   const mapCenter=useMemo(()=>selected?{lat:selected.lat,lng:selected.lng}:coords,[selected,coords]);
 
-  const googleMapsUrl=place=>'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent([place.name,place.address,locationLabel].filter(Boolean).join(', '))+(place.googlePlaceId?'&query_place_id='+encodeURIComponent(place.googlePlaceId):'');
+  const selectedPlaceQuery=place=>[
+    place?.name,
+    place?.address,
+    Number.isFinite(Number(place?.lat))&&Number.isFinite(Number(place?.lng))
+      ? Number(place.lat).toFixed(6)+','+Number(place.lng).toFixed(6)
+      : ''
+  ].filter(Boolean).join(', ');
+  const googleMapsUrl=place=>'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(selectedPlaceQuery(place))+(place?.googlePlaceId?'&query_place_id='+encodeURIComponent(place.googlePlaceId):'');
+  const googleReviewsUrl=place=>'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(selectedPlaceQuery(place));
   const googleSatelliteUrl=place=>'https://www.google.com/maps/@?api=1&map_action=map&center='+encodeURIComponent(place.lat+','+place.lng)+'&zoom=21&basemap=satellite';
   const googleStreetViewUrl=place=>'https://www.google.com/maps/@?api=1&map_action=pano&viewpoint='+encodeURIComponent(place.lat+','+place.lng);
 
@@ -1086,7 +1115,7 @@ function App(){
           </div>
         </div>
 
-        {provider==='OpenStreetMap'&&<div className="mtProviderNotice"><span>REVIEW DATA</span><p>This deployment uses live open map sources for nearby discovery and never invents ratings. The Reviews panel always links to Google Maps; adding a server-side <code>GOOGLE_MAPS_API_KEY</code> enables official Google rating counts and review excerpts inside MoodTrip.</p></div>}
+        {provider==='OpenStreetMap'&&<div className="mtProviderNotice"><span>REVIEW DATA</span><p>MoodTrip uses live open map sources for nearby discovery and does not invent ratings. Open <b>Reviews</b> on any result to see public web review snippets when available, MoodTrip community reviews, and a Google Reviews link for that exact selected place.</p></div>}
       </>:<div className="mtEmptyResults"><span>03</span><h3>Share a location, choose the mood, then run the pipeline.</h3><p>The page will query live nearby places rather than showing a fixed Jaipur demo list.</p></div>}
     </section>
 
@@ -1118,9 +1147,32 @@ function App(){
         <motion.button className="mtHistoryScrim" aria-label="Close reviews" onClick={()=>setReviewPlace(null)} initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}/>
         <motion.aside className="mtReviewSheet" initial={{x:'100%'}} animate={{x:0}} exit={{x:'100%'}} transition={{type:'spring',stiffness:190,damping:26}}>
           <div className="mtReviewHead">
-            <div><span>MOODTRIP REVIEWS</span><h3>{reviewPlace.name}</h3><p>{reviewPlace.address||locationLabel||'Nearby'}</p></div>
+            <div><span>REVIEWS / SELECTED PLACE</span><h3>{reviewPlace.name}</h3><p>{reviewPlace.address||[reviewPlace.lat,reviewPlace.lng].join(', ')}</p></div>
             <button onClick={()=>setReviewPlace(null)}>×</button>
           </div>
+
+          <section className="mtPublicReviews">
+            <div className="mtPublicReviewTitle">
+              <div><span>PUBLIC WEB REVIEWS</span><h4>What people are saying elsewhere.</h4></div>
+              <b>{publicReviewState==='loading'?'SEARCHING…':publicReviews.length?publicReviews.length+' SOURCES':'LIVE SEARCH'}</b>
+            </div>
+
+            {publicReviewState==='loading'&&<div className="mtPublicReviewLoading"><i/><span>CHECKING PUBLIC REVIEW SOURCES…</span></div>}
+
+            {publicReviewState!=='loading'&&publicReviews.length>0&&<div className="mtPublicReviewList">
+              {publicReviews.map((r,i)=><article key={r.url+i}>
+                <div><span>{r.source}</span><b>0{Math.min(i+1,9)}</b></div>
+                <h5>{r.title}</h5>
+                <p>{r.snippet.length>280?r.snippet.slice(0,277)+'…':r.snippet}</p>
+                <a href={r.url} target="_blank" rel="noreferrer">READ ON {r.source} ↗</a>
+              </article>)}
+            </div>}
+
+            {publicReviewState!=='loading'&&!publicReviews.length&&<div className="mtPublicReviewEmpty">
+              <span>NO PUBLIC REVIEW SNIPPETS FOUND</span>
+              <p>This place may not have indexed reviews on the public sources MoodTrip can access. You can still check Google below or add a MoodTrip review.</p>
+            </div>}
+          </section>
 
           <div className="mtCommunityRating">
             <div>
@@ -1154,7 +1206,7 @@ function App(){
           <div className="mtExternalReviews">
             <span>EXTERNAL REVIEWS</span>
             <p>Want the latest public Google rating and comments for this place?</p>
-            <a href={googleMapsUrl(reviewPlace)} target="_blank" rel="noreferrer">SEE LIVE GOOGLE REVIEWS ↗</a>
+            <a href={googleReviewsUrl(reviewPlace)} target="_blank" rel="noreferrer">SEE GOOGLE REVIEWS FOR {reviewPlace.name.toUpperCase()} ↗</a>
           </div>
         </motion.aside>
       </>}
