@@ -287,10 +287,18 @@ function kMeans(items,k=4){
   return items.map((p,i)=>({...p,cluster:labels[i],clusterVector:centroids[labels[i]]}));
 }
 
-async function apiJson(url,options){
+async function apiJson(url,options={},timeout=9000){
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),timeout);
   let r;
-  try{r=await fetch(url,options)}
-  catch{throw new Error('Could not reach the MoodTrip map service. Please try again.')}
+  try{
+    r=await fetch(url,{...options,signal:controller.signal});
+  }catch(e){
+    if(e?.name==='AbortError')throw new Error('Nearby search took too long. Please retry.');
+    throw new Error('Could not reach the MoodTrip map service. Please try again.');
+  }finally{
+    clearTimeout(timer);
+  }
   let data={};
   try{data=await r.json()}catch{}
   if(!r.ok)throw new Error(data.error||'Map service unavailable. Please try again.');
@@ -311,8 +319,8 @@ async function geocodeCity(query){
   return {lat:Number(d.lat),lng:Number(d.lng),label:d.label||query};
 }
 
-async function overpassPlaces(coords,radiusKm){
-  const d=await apiJson('/api/moodtrip?action=places&lat='+encodeURIComponent(coords.lat)+'&lng='+encodeURIComponent(coords.lng)+'&radiusKm='+encodeURIComponent(radiusKm));
+async function overpassPlaces(coords,radiusKm,mood){
+  const d=await apiJson('/api/moodtrip?action=places&lat='+encodeURIComponent(coords.lat)+'&lng='+encodeURIComponent(coords.lng)+'&radiusKm='+encodeURIComponent(radiusKm)+'&mood='+encodeURIComponent(mood),{},9000);
   const seen=new Set();
   return (d.elements||[]).map(el=>{
     const lat=Number(el.lat??el.center?.lat),lng=Number(el.lon??el.center?.lon);
@@ -431,7 +439,7 @@ function App(){
   const [mode,setMode]=useState('solo');
   const [soloMood,setSoloMood]=useState('happy');
   const [text,setText]=useState('');
-  const [autoMood,setAutoMood]=useState(true);
+  const [autoMood,setAutoMood]=useState(false);
   const [groupCount,setGroupCount]=useState(4);
   const [groupMoods,setGroupMoods]=useState(['happy','happy','social','peaceful']);
   const [crowd,setCrowd]=useState('any');
@@ -504,73 +512,108 @@ function App(){
     }catch(e){setLocationState('error');setError(e.message||'Location not found')}
   }
 
-  async function inferFinalMood(){
-    if(mode==='group')return {mood:majority,vector:groupVector,deep:null};
-    let mood=soloMood,deep=null;
-    if(autoMood&&text.trim()){
-      setModelState('loading');
-      deep=await deepEmotion(text);
-      if(deep?.mood&&deep.confidence>.48)mood=deep.mood;
-      else mood=ruleMood(text,soloMood);
-      setModelInfo(deep);
-      setModelState(deep?'ready':'fallback');
-    }
-    return {mood,vector:MOOD_VECTORS[mood]||MOOD_VECTORS[soloMood],deep};
+  function inferFinalMoodFast(){
+    if(mode==='group')return {mood:majority,vector:groupVector};
+    const mood=autoMood&&text.trim()?ruleMood(text,soloMood):soloMood;
+    setModelState(autoMood&&text.trim()?'fast':'idle');
+    return {mood,vector:MOOD_VECTORS[mood]||MOOD_VECTORS[soloMood]};
   }
 
-  async function rankPlaces(raw,mood,vector){
+  function rankPlacesFast(raw,mood,vector){
     if(!raw.length)return [];
     const clustered=kMeans(raw,4);
     const clusterScores=new Map();
     clustered.forEach(p=>clusterScores.set(p.cluster,cosine(p.clusterVector,vector)));
     const bestClusters=[...clusterScores.entries()].sort((a,b)=>b[1]-a[1]).slice(0,3).map(x=>x[0]);
     const shortlist=clustered.filter(p=>bestClusters.includes(p.cluster));
-    let forest=null;
-    try{setForestState('loading');forest=await getForest();setForestState('ready')}catch(e){console.warn(e);setForestState('fallback')}
     const enriched=shortlist.map(p=>{
       const feature=CATEGORY_FEATURES[p.category]||CATEGORY_FEATURES.unknown;
       const distanceKm=haversine(coords,p);
       const ratingNorm=p.rating?clamp((p.rating-2.5)/2.5):.72;
-      const distNorm=clamp(distanceKm/radiusKm);
+      const distNorm=clamp(distanceKm/Math.max(radiusKm,1));
       const estimate=crowdEstimate(p.category);
       const cFit=crowdFit(activeCrowd,estimate);
-      const input=[...vector,...feature,distNorm,ratingNorm,['quiet','balanced','lively'].indexOf(activeCrowd)/2];
-      let mlScore=100*clamp(.54*((cosine(vector,feature)+1)/2)+.22*(1-distNorm)+.14*ratingNorm+.1*cFit);
-      try{if(forest)mlScore=forest.predict([input])[0]}catch{}
+      const moodFit=(cosine(vector,feature)+1)/2;
+      let mlScore=100*clamp(.56*moodFit+.24*(1-distNorm)+.12*ratingNorm+.08*cFit);
       const affinity=likes[p.category]||0;
       mlScore=clamp((mlScore+Math.min(affinity,6)*1.2)/100)*100;
-      return {...p,distanceKm,mlScore,crowdEstimate:estimate,moodFit:(cosine(vector,feature)+1)/2};
+      return {...p,distanceKm,mlScore,crowdEstimate:estimate,moodFit};
     }).filter(p=>(MOOD_CATEGORIES[mood]||[]).includes(p.category)||p.moodFit>.76);
+
     return enriched.sort((a,b)=>{
-      const d=a.distanceKm-b.distanceKm;
-      if(Math.abs(d)>.7)return d;
+      const distanceGap=a.distanceKm-b.distanceKm;
+      if(Math.abs(distanceGap)>.7)return distanceGap;
       if(a.rating!=null&&b.rating!=null&&a.rating!==b.rating)return b.rating-a.rating;
       if((a.reviewCount||0)!==(b.reviewCount||0))return (b.reviewCount||0)-(a.reviewCount||0);
       return b.mlScore-a.mlScore;
     }).slice(0,12);
   }
 
+  async function runDeepMood(){
+    if(!text.trim()){setError('Write how you feel first, then run deep mood analysis.');return}
+    setError('');setModelState('loading');
+    try{
+      const deep=await deepEmotion(text);
+      if(!deep){setModelState('fallback');setError('Deep model could not load on this device. Fast mood detection still works.');return}
+      setModelInfo(deep);
+      setModelState('ready');
+      if(deep.mood&&deep.confidence>.48)setSoloMood(deep.mood);
+    }catch{
+      setModelState('fallback');
+      setError('Deep model could not load on this device. Fast mood detection still works.');
+    }
+  }
+
   async function findPlaces(){
     if(!coords){setError('Share your location or enter a city before finding places.');return}
+    if(searchState==='loading')return;
     setError('');setSearchState('loading');
+    const started=performance.now();
     try{
-      const inferred=await inferFinalMood();
+      const inferred=inferFinalMoodFast();
       const mood=inferred.mood;
       const vector=mode==='group'?groupVector:inferred.vector;
       setResultsMood(mood);
+
       let raw=null;
-      try{raw=await googlePlaces(coords,radiusKm,mood)}catch(e){console.warn('Google Places fallback',e)}
-      if(raw?.length){setProvider('Google Places')}
-      else{raw=await overpassPlaces(coords,radiusKm);setProvider('OpenStreetMap')}
-      const ranked=await rankPlaces(raw,mood,vector);
-      setPlaces(ranked);setSelectedId(ranked[0]?.id||null);
+      const key=import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+      if(key){
+        try{
+          raw=await Promise.race([
+            googlePlaces(coords,Math.min(radiusKm,8),mood),
+            new Promise((_,reject)=>setTimeout(()=>reject(new Error('Google Places timeout')),3500))
+          ]);
+        }catch(e){console.warn('Google Places fast fallback',e)}
+      }
+
+      if(raw?.length){
+        setProvider('Google Places');
+      }else{
+        raw=await overpassPlaces(coords,radiusKm,mood);
+        setProvider('OpenStreetMap');
+      }
+
+      const ranked=rankPlacesFast(raw||[],mood,vector);
+      setPlaces(ranked);
+      setSelectedId(ranked[0]?.id||null);
+      setForestState('fast');
       setSearchState('ready');
+
+      if(!ranked.length){
+        setError('No suitable places were found in the fast search radius. Try another mood or a larger city area.');
+      }
+
+      const elapsed=Math.max(1,Math.round((performance.now()-started)/100)/10);
+      setModelInfo(info=>({...info,lastSearchSeconds:elapsed}));
+
       const entry={id:Date.now(),mood,mode,location:locationLabel||'Current area',count:ranked.length,time:new Date().toLocaleString()};
       const next=[entry,...history].slice(0,8);setHistory(next);
       try{localStorage.setItem('moodtrip-v2-history',JSON.stringify(next))}catch{}
       requestAnimationFrame(()=>document.getElementById('results')?.scrollIntoView({behavior:'smooth',block:'start'}));
     }catch(e){
-      console.error(e);setSearchState('error');setError(e?.message&&e.message!=='Failed to fetch'?e.message:'Nearby place search is temporarily unavailable. Please try again.');
+      console.error(e);
+      setSearchState('error');
+      setError(e?.message&&e.message!=='Failed to fetch'?e.message:'Nearby place search is temporarily unavailable. Please retry.');
     }
   }
 
@@ -621,7 +664,7 @@ function App(){
       {[
         ['01','TRANSFORMER','emotion classification'],
         ['02','K-MEANS','vibe clustering'],
-        ['03','RANDOM FOREST','suitability ranker'],
+        ['03','RANK FUSION','fast suitability scoring'],
         ['04',provider.toUpperCase(),'nearby place discovery']
       ].map(([n,a,b],i)=><motion.div key={a} initial={{opacity:0,y:18}} whileInView={{opacity:1,y:0}} viewport={{once:true}} transition={{delay:i*.06}}><span>{n}</span><b>{a}</b><small>{b}</small></motion.div>)}
     </section>
@@ -663,7 +706,7 @@ function App(){
           <div className="mtWindowTop"><span>{mode==='group'?'GROUP MOOD BOARD':'MOOD INPUT'}</span><b>{activeMood.toUpperCase()}</b></div>
           {mode==='solo'&&<>
             <label className="mtTextMood"><span>Describe how you feel</span><textarea value={text} onChange={e=>setText(e.target.value)} placeholder="I feel low today. I want somewhere quiet where I can sit by myself and not deal with a crowd…"/></label>
-            <div className="mtAutoRow"><button className={autoMood?'active':''} onClick={()=>setAutoMood(v=>!v)}>{autoMood?'AUTO DETECT ON':'AUTO DETECT OFF'}</button><span>{modelInfo?('DL: '+modelInfo.label+' · '+Math.round(modelInfo.confidence*100)+'%'):'Transformer loads only when needed'}</span></div>
+            <div className="mtAutoRow"><div><button className={autoMood?'active':''} onClick={()=>setAutoMood(v=>!v)}>{autoMood?'FAST TEXT MOOD ON':'FAST TEXT MOOD OFF'}</button><button onClick={runDeepMood} disabled={modelState==='loading'}>{modelState==='loading'?'DEEP MODEL LOADING…':'RUN DEEP MODEL'}</button></div><span>{modelInfo?.label?('DL: '+modelInfo.label+' · '+Math.round(modelInfo.confidence*100)+'%'):modelInfo?.lastSearchSeconds?('last search '+modelInfo.lastSearchSeconds+'s'):'Fast mode never waits for the transformer'}</span></div>
           </>}
           {mode==='group'&&<div className="mtGroupBoard">
             {groupMoods.map((gm,i)=><label key={i}><span>P{String(i+1).padStart(2,'0')}</span><select value={gm} onChange={e=>setGroupMoods(v=>v.map((m,j)=>j===i?e.target.value:m))}>{MOODS.map(m=><option key={m.id} value={m.id}>{m.label}</option>)}</select></label>)}
@@ -705,7 +748,7 @@ function App(){
         {[
           ['TEXT / MOOD','Transformer','emotion probabilities',modelState==='ready'?'READY':modelState==='loading'?'LOADING':'LAZY'],
           ['PLACE FEATURES','K-Means','vibe cluster vectors',places.length?String(new Set(places.map(p=>p.cluster)).size)+' CLUSTERS':'WAITING'],
-          ['SUITABILITY','Random Forest','36-tree regressor',forestState==='ready'?'READY':forestState==='loading'?'TRAINING':'LAZY'],
+          ['SUITABILITY','Rank Fusion','mood + distance + crowd',forestState==='fast'?'FAST MODE':'READY'],
           ['FINAL ORDER','Rank fusion','distance → rating → ML',provider.toUpperCase()]
         ].map(([a,b,c,d],i)=><React.Fragment key={b}>
           <motion.div className="mtPipeNode" initial={{opacity:0,scale:.9}} whileInView={{opacity:1,scale:1}} viewport={{once:true}} transition={{delay:i*.08,type:'spring'}}><span>{a}</span><h3>{b}</h3><p>{c}</p><b>{d}</b></motion.div>
@@ -775,7 +818,7 @@ function App(){
           ['A','DEEP EMOTION','A quantized RoBERTa emotion model runs in the browser on demand. Manual mood remains available as an explicit user signal.'],
           ['B','GROUP VECTOR','Every group member contributes a mood vector. Majority decides the label; ties are resolved from the averaged group vector.'],
           ['C','UNSUPERVISED VIBES','K-Means groups nearby candidates by atmosphere features instead of relying only on OSM/Google category names.'],
-          ['D','ENSEMBLE RANKING','A 36-tree Random Forest regressor scores mood fit, distance, crowd preference and rating signal before final rank fusion.'],
+          ['D','ENSEMBLE RANKING','Fast rank fusion scores mood fit, exact distance, crowd preference and rating signal. Heavy models never block the first result set.'],
           ['E','ONLINE FEEDBACK','“Good pick” feedback is stored locally and adds a small category affinity bonus on later searches.'],
           ['F','CONTEXT','Distance radius, crowd preference, group state and current mood all become model features rather than visual-only filters.']
         ].map(([n,t,p],i)=><PopWindow key={t} className="mtDSCard" delay={i*.04}><span>{n}</span><h3>{t}</h3><p>{p}</p></PopWindow>)}
