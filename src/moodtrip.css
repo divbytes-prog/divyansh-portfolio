@@ -1519,3 +1519,156 @@ a{text-decoration:none}
     padding-right:22px;
   }
 }
+
+
+/* open street imagery browser */
+.mtOpenStreetCamera{
+  background:#171411;
+}
+.mtStreetProviderTabs{
+  position:absolute;
+  z-index:540;
+  top:54px;
+  left:12px;
+  right:78px;
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  pointer-events:auto;
+}
+.mtStreetProviderTabs button{
+  min-height:30px;
+  border:1px solid rgba(255,255,255,.24);
+  background:rgba(23,20,17,.82);
+  color:#f7f2eb;
+  padding:7px 9px;
+  backdrop-filter:blur(10px);
+  font:500 7px 'IBM Plex Mono';
+  letter-spacing:.04em;
+}
+.mtStreetProviderTabs button b{
+  margin-left:5px;
+  color:#f1b09a;
+  font-weight:500;
+}
+.mtStreetProviderTabs button.active{
+  background:#f7f2eb;
+  color:#171411;
+  border-color:#f7f2eb;
+}
+.mtStreetProviderTabs button.active b{
+  color:var(--clay-deep);
+}
+.mtStreetProviderTabs button:disabled{
+  opacity:.36;
+  cursor:not-allowed;
+}
+.mtStreetMediaFrame{
+  position:absolute;
+  inset:0;
+  z-index:431;
+  overflow:hidden;
+  background:
+    radial-gradient(circle at 62% 42%,rgba(154,102,84,.34),transparent 48%),
+    #171411;
+}
+.mtStreetMediaFrame>img,
+.mtStreetMediaFrame>iframe{
+  width:100%;
+  height:100%;
+  display:block;
+  border:0;
+}
+.mtStreetMediaFrame>img{
+  object-fit:cover;
+}
+.mtStreetPrev,
+.mtStreetNext{
+  position:absolute;
+  z-index:6;
+  top:50%;
+  width:42px;
+  height:56px;
+  transform:translateY(-50%);
+  border:1px solid rgba(255,255,255,.35);
+  background:rgba(23,20,17,.74);
+  color:white;
+  backdrop-filter:blur(8px);
+  font-size:22px;
+}
+.mtStreetPrev{left:12px}
+.mtStreetNext{right:12px}
+.mtStreetPrev:hover,
+.mtStreetNext:hover{
+  background:var(--clay);
+}
+.mtStreetCaptionActions{
+  flex:0 0 auto;
+  display:flex;
+  align-items:flex-end;
+  flex-direction:column;
+  gap:7px;
+}
+.mtStreetCaptionActions a,
+.mtStreetCaptionActions span{
+  font:500 7px 'IBM Plex Mono';
+  letter-spacing:.05em;
+}
+.mtStreetCaptionActions a{
+  padding-bottom:3px;
+  border-bottom:1px solid currentColor;
+  color:white;
+}
+.mtStreetCaptionActions span{
+  color:#cfc5bc;
+}
+.mtOpenCameraLinks{
+  display:flex;
+  justify-content:center;
+  flex-wrap:wrap;
+  gap:8px;
+  margin-top:22px;
+}
+.mtOpenCameraLinks a{
+  margin-top:0;
+  min-width:118px;
+}
+@media(max-width:900px){
+  .mtStreetProviderTabs{
+    right:64px;
+  }
+}
+@media(max-width:620px){
+  .mtStreetProviderTabs{
+    top:48px;
+    left:8px;
+    right:8px;
+    gap:4px;
+  }
+  .mtStreetProviderTabs button{
+    flex:1 1 auto;
+    min-width:0;
+    padding:7px 5px;
+    font-size:6px;
+  }
+  .mtStreetPrev,
+  .mtStreetNext{
+    width:36px;
+    height:48px;
+  }
+  .mtStreetCameraCaption{
+    left:8px;
+    right:8px;
+    bottom:36px;
+  }
+  .mtStreetCaptionActions{
+    width:100%;
+    align-items:flex-start;
+    flex-direction:row;
+    justify-content:space-between;
+  }
+  .mtOpenCameraLinks a{
+    flex:1 1 calc(50% - 8px);
+    min-width:0;
+  }
+}
