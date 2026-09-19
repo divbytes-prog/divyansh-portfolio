@@ -594,9 +594,10 @@ function flattenJsonLd(value,out=[]){
 }
 
 function metaContent(html,key){
+  const escaped=String(key).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
   const patterns=[
-    new RegExp('<meta[^>]+(?:name|property)=["\\']'+key+'["\\'][^>]+content=["\\']([^"\\']+)["\\']','i'),
-    new RegExp('<meta[^>]+content=["\\']([^"\\']+)["\\'][^>]+(?:name|property)=["\\']'+key+'["\\']','i')
+    new RegExp(`<meta[^>]+(?:name|property)=["']${escaped}["'][^>]+content=["']([^"']+)["']`,'i'),
+    new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+(?:name|property)=["']${escaped}["']`,'i')
   ];
   for(const re of patterns){
     const m=html.match(re);
