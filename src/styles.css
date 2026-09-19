@@ -435,3 +435,53 @@ a:focus-visible,button:focus-visible{outline:2px solid var(--clay);outline-offse
   *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
   .heroFx{transform:none!important}
 }
+.heroMarginNote{
+  position:absolute;left:53%;top:21%;z-index:4;font:8px/1.5 'IBM Plex Mono';
+  letter-spacing:.16em;color:#665b53;text-align:right;transform:rotate(-4deg)
+}
+.fieldNotebook{
+  grid-column:2;justify-self:end;align-self:start;position:relative;width:min(520px,72%);
+  margin:-18px 4% 0 0;padding:26px 26px 22px;background:#ece3d8;color:#2a241f;
+  border:1px solid #bbaa9c;box-shadow:18px 22px 0 rgba(154,102,84,.15);z-index:3
+}
+.notebookTape{
+  position:absolute;top:-14px;left:42%;width:100px;height:28px;background:#d8c7b7;
+  opacity:.75;transform:rotate(-2deg)
+}
+.notebookHead{
+  display:flex;justify-content:space-between;gap:20px;padding-bottom:14px;border-bottom:1px solid #bcaea2;
+  font:8px 'IBM Plex Mono';letter-spacing:.11em
+}
+.notebookHead small{font-size:7px;color:#786e66}
+.fieldNotebook svg{display:block;width:100%;height:auto;margin-top:4px;overflow:visible}
+.fieldNotebook svg text{
+  font-family:'IBM Plex Mono';font-size:11px;letter-spacing:.08em;fill:#514840
+}
+.fieldNotebook svg circle{fill:#9a6654}
+.notebookStats{
+  display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid #bcaea2;
+  border-bottom:1px solid #bcaea2
+}
+.notebookStats>div{padding:14px 10px;border-right:1px solid #bcaea2}
+.notebookStats>div:last-child{border-right:0}
+.notebookStats b{display:block;font:500 15px 'Bricolage Grotesque'}
+.notebookStats span{display:block;margin-top:4px;font:7px 'IBM Plex Mono';color:#766b63;text-transform:uppercase}
+.notebookScribble{
+  margin-top:16px;font:italic 18px 'Fraunces',serif;color:#754f43;transform:rotate(-1deg)
+}
+
+@media(max-width:1150px){
+  .fieldNotebook{width:min(480px,80%);margin-right:0}
+}
+@media(max-width:880px){
+  .heroMarginNote{display:none}
+  .fieldNotebook{grid-column:1;width:min(560px,100%);justify-self:start;margin:30px 0 0}
+}
+@media(max-width:600px){
+  .fieldNotebook{padding:18px;box-shadow:10px 12px 0 rgba(154,102,84,.12)}
+  .notebookHead{flex-direction:column;gap:6px}
+  .notebookStats{grid-template-columns:1fr}
+  .notebookStats>div{border-right:0;border-bottom:1px solid #bcaea2}
+  .notebookStats>div:last-child{border-bottom:0}
+  .notebookScribble{font-size:16px}
+}
