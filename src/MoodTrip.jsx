@@ -287,34 +287,32 @@ function kMeans(items,k=4){
   return items.map((p,i)=>({...p,cluster:labels[i],clusterVector:centroids[labels[i]]}));
 }
 
+async function apiJson(url,options){
+  let r;
+  try{r=await fetch(url,options)}
+  catch{throw new Error('Could not reach the MoodTrip map service. Please try again.')}
+  let data={};
+  try{data=await r.json()}catch{}
+  if(!r.ok)throw new Error(data.error||'Map service unavailable. Please try again.');
+  return data;
+}
+
 async function reverseGeocode({lat,lng}){
   try{
-    const url='https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=10&lat='+encodeURIComponent(lat)+'&lon='+encodeURIComponent(lng);
-    const r=await fetch(url,{headers:{'Accept':'application/json'}});
-    if(!r.ok)throw new Error('reverse geocode failed');
-    const d=await r.json();
-    const a=d.address||{};
-    return [a.city||a.town||a.village||a.county,a.state].filter(Boolean).join(', ')||'Current area';
-  }catch{return 'Current area'}
+    const d=await apiJson('/api/moodtrip?action=reverse&lat='+encodeURIComponent(lat)+'&lng='+encodeURIComponent(lng));
+    return d.label||'Current area';
+  }catch{
+    return 'Current area';
+  }
 }
 
 async function geocodeCity(query){
-  const url='https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q='+encodeURIComponent(query);
-  const r=await fetch(url,{headers:{'Accept':'application/json'}});
-  if(!r.ok)throw new Error('Could not search location');
-  const d=await r.json();
-  if(!d[0])throw new Error('Location not found');
-  return {lat:Number(d[0].lat),lng:Number(d[0].lon),label:d[0].display_name.split(',').slice(0,2).join(', ')};
+  const d=await apiJson('/api/moodtrip?action=geocode&q='+encodeURIComponent(query));
+  return {lat:Number(d.lat),lng:Number(d.lng),label:d.label||query};
 }
 
 async function overpassPlaces(coords,radiusKm){
-  const radius=Math.round(radiusKm*1000);
-  const blocks=OSM_QUERY_TAGS.map(tag=>'nwr(around:'+radius+','+coords.lat+','+coords.lng+')'+tag+';').join('');
-  const query='[out:json][timeout:25];('+blocks+');out center tags 180;';
-  const body=new URLSearchParams({data:query});
-  const r=await fetch('https://overpass-api.de/api/interpreter',{method:'POST',body});
-  if(!r.ok)throw new Error('Nearby place service is busy');
-  const d=await r.json();
+  const d=await apiJson('/api/moodtrip?action=places&lat='+encodeURIComponent(coords.lat)+'&lng='+encodeURIComponent(coords.lng)+'&radiusKm='+encodeURIComponent(radiusKm));
   const seen=new Set();
   return (d.elements||[]).map(el=>{
     const lat=Number(el.lat??el.center?.lat),lng=Number(el.lon??el.center?.lon);
@@ -572,7 +570,7 @@ function App(){
       try{localStorage.setItem('moodtrip-v2-history',JSON.stringify(next))}catch{}
       requestAnimationFrame(()=>document.getElementById('results')?.scrollIntoView({behavior:'smooth',block:'start'}));
     }catch(e){
-      console.error(e);setSearchState('error');setError(e.message||'Could not load nearby places right now.');
+      console.error(e);setSearchState('error');setError(e?.message&&e.message!=='Failed to fetch'?e.message:'Nearby place search is temporarily unavailable. Please try again.');
     }
   }
 
