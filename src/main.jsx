@@ -260,7 +260,7 @@ function App(){
       <section className="hero">
         <motion.div className="heroFx" style={reduce?undefined:{y:heroY,opacity:heroOpacity}} aria-hidden="true">
           <AeroShards
-            backgroundColor="#f4f0ea" shardColor="#b8aa9d" accentColor="#8a6f60"
+            backgroundColor="#f2eee7" shardColor="#b69b8c" accentColor="#9a6654"
             placement="full" flow="stream" material="pearl" detail="balanced"
             scale={1} spread={1.15} depth={1} speed={.32} spin={.48}
             interaction="repel" density={.72} shardSize={.78} turbulence={.62}
@@ -269,7 +269,7 @@ function App(){
           />
         </motion.div>
         <div className="heroFallback" aria-hidden="true"/><div className="heroVeil" aria-hidden="true"/>
-        <div className="heroInner">
+        <div className="heroInner"><div className="heroColorBlock" aria-hidden="true"/><div className="heroStudioMark" aria-hidden="true">BUILD / LEARN / SHIP</div>
           <motion.div className="heroMeta" initial={{opacity:0,y:18}} animate={{opacity:1,y:0}} transition={{delay:.25,duration:.65}}>
             <span><i/>COMPUTER SCIENCE + ML</span><span>LNMIIT · JAIPUR</span>
           </motion.div>
@@ -300,7 +300,7 @@ function App(){
             <span>Good work takes patience.</span><span>Good work takes patience.</span><span>Good work takes patience.</span><span>Good work takes patience.</span>
           </motion.div>
         </div>
-        <div className="statementGrid shell">
+        <div className="statementGrid shell"><div className="statementBlock" aria-hidden="true"/>
           <Reveal><p className="eyebrow">01 / ABOUT</p></Reveal>
           <Reveal delay={.07}>
             <h2>I care about making things <em>clear, useful and real.</em></h2>
@@ -340,7 +340,7 @@ function App(){
         </Reveal>
       </section>
 
-      <section className="work shell" id="work">
+      <section className="work shell" id="work"><div className="workColorBlock" aria-hidden="true"/>
         <div className="sectionHead split">
           <Reveal><div><p className="eyebrow">03 / SELECTED WORK</p><h2>Things I’ve <em>actually built.</em></h2></div></Reveal>
           <Reveal delay={.1}><MagneticLink className="textLink" href="https://github.com/divbytes-prog" external>All repositories ↗</MagneticLink></Reveal>
@@ -348,7 +348,7 @@ function App(){
         <div className="projectGrid">{projects.map((project,i)=><TiltCard key={project.n} project={project} index={i}/>)}</div>
       </section>
 
-      <section className="profile shell" id="stack">
+      <section className="profile shell" id="stack"><div className="profileMark" aria-hidden="true">04</div>
         <div className="profileGrid">
           <Reveal>
             <p className="eyebrow">04 / PROFILE</p>
