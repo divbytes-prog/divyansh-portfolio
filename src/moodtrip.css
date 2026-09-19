@@ -352,3 +352,92 @@ a{text-decoration:none}
     min-width:0;
   }
 }
+
+
+/* satellite map upgrade */
+.mtTile.satellite{
+  filter:saturate(.88) contrast(1.03) brightness(.98);
+}
+.mtTile.street{
+  filter:saturate(.75) contrast(1.02) brightness(1.01);
+}
+.mtTileLabels{
+  z-index:2;
+  pointer-events:none;
+  filter:none;
+  opacity:.92;
+}
+.mtMapLayerSwitch{
+  position:absolute;
+  z-index:12;
+  left:12px;
+  top:12px;
+  display:flex;
+  background:rgba(251,248,242,.94);
+  border:1px solid var(--line);
+  box-shadow:4px 4px 0 rgba(23,20,17,.1);
+  backdrop-filter:blur(7px);
+}
+.mtMapLayerSwitch button{
+  border:0;
+  background:transparent;
+  padding:10px 12px;
+  font:500 8px 'IBM Plex Mono';
+  letter-spacing:.06em;
+}
+.mtMapLayerSwitch button+button{
+  border-left:1px solid var(--line);
+}
+.mtMapLayerSwitch button.active{
+  background:var(--ink);
+  color:white;
+}
+.mtMapMarker{
+  overflow:visible;
+}
+.mtMapMarker b{
+  position:absolute;
+  left:36px;
+  top:50%;
+  transform:translateY(-50%);
+  max-width:220px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  padding:7px 9px;
+  border:1px solid rgba(255,255,255,.4);
+  background:rgba(23,20,17,.94);
+  color:white;
+  box-shadow:5px 5px 0 rgba(23,20,17,.18);
+  font:500 8px 'IBM Plex Mono';
+  letter-spacing:.04em;
+  pointer-events:none;
+}
+.mtZoomReadout{
+  position:absolute;
+  z-index:9;
+  right:12px;
+  bottom:12px;
+  padding:6px 8px;
+  background:rgba(251,248,242,.9);
+  border:1px solid var(--line);
+  font:500 7px 'IBM Plex Mono';
+  color:#4f4843;
+}
+.mtMapAttribution{
+  max-width:68%;
+  line-height:1.35;
+}
+@media(max-width:620px){
+  .mtMapLayerSwitch button{
+    padding:8px 9px;
+    font-size:7px;
+  }
+  .mtMapMarker b{
+    max-width:150px;
+    font-size:7px;
+  }
+  .mtZoomReadout{
+    display:none;
+  }
+}
