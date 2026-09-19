@@ -8,6 +8,9 @@ import{
   useSpring,
   useTransform
 }from'motion/react';
+import L from'leaflet';
+import AeroShards from'./AeroShards';
+import'leaflet/dist/leaflet.css';
 import'./moodtrip.css';
 
 const MOODS=[
@@ -388,103 +391,140 @@ function LiveMoodSignal({mood,status}){
   </div>;
 }
 
-function tileX(lng,z){return((lng+180)/360)*2**z}
-function tileY(lat,z){
-  const r=lat*Math.PI/180;
-  return(1-Math.asinh(Math.tan(r))/Math.PI)/2*2**z;
-}
-
-function TileMap({center,places,selectedId,onSelect}){
-  const [zoom,setZoom]=useState(18);
+function InteractiveMap({center,places,selectedId,onSelect}){
+  const rootRef=useRef(null);
+  const mapRef=useRef(null);
+  const baseRef=useRef(null);
+  const labelsRef=useRef(null);
+  const markerLayerRef=useRef(null);
   const [layer,setLayer]=useState('satellite');
+  const [zoom,setZoom]=useState(19);
 
   useEffect(()=>{
-    // Selecting a result behaves like Google Maps: recenter and zoom close enough
-    // to inspect the actual building/plot around the place.
-    setZoom(18);
+    if(!rootRef.current||!center||mapRef.current)return;
+
+    const map=L.map(rootRef.current,{
+      zoomControl:false,
+      attributionControl:true,
+      scrollWheelZoom:true,
+      doubleClickZoom:true,
+      dragging:true,
+      touchZoom:true,
+      boxZoom:true,
+      keyboard:true,
+      zoomSnap:.5,
+      zoomDelta:.5,
+      minZoom:3,
+      maxZoom:21
+    }).setView([center.lat,center.lng],19);
+
+    L.control.zoom({position:'topright'}).addTo(map);
+    markerLayerRef.current=L.layerGroup().addTo(map);
+    mapRef.current=map;
+
+    const timer=setTimeout(()=>map.invalidateSize(),80);
+    const sync=()=>setZoom(map.getZoom());
+    map.on('zoomend',sync);
+
+    return()=>{
+      clearTimeout(timer);
+      map.off('zoomend',sync);
+      map.remove();
+      mapRef.current=null;
+      baseRef.current=null;
+      labelsRef.current=null;
+      markerLayerRef.current=null;
+    };
+  },[center?.lat,center?.lng]);
+
+  useEffect(()=>{
+    const map=mapRef.current;
+    if(!map)return;
+
+    if(baseRef.current){map.removeLayer(baseRef.current);baseRef.current=null}
+    if(labelsRef.current){map.removeLayer(labelsRef.current);labelsRef.current=null}
+
+    if(layer==='satellite'){
+      baseRef.current=L.tileLayer(
+        'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+        {
+          maxNativeZoom:19,
+          maxZoom:21,
+          tileSize:256,
+          updateWhenZooming:false,
+          keepBuffer:3,
+          attribution:'Imagery © Esri, Maxar, Earthstar Geographics'
+        }
+      ).addTo(map);
+      labelsRef.current=L.tileLayer(
+        'https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+        {
+          maxNativeZoom:19,
+          maxZoom:21,
+          pane:'overlayPane',
+          opacity:.88,
+          attribution:''
+        }
+      ).addTo(map);
+    }else{
+      baseRef.current=L.tileLayer(
+        'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        {
+          maxNativeZoom:19,
+          maxZoom:21,
+          keepBuffer:3,
+          attribution:'© OpenStreetMap contributors'
+        }
+      ).addTo(map);
+    }
+  },[layer,center?.lat,center?.lng]);
+
+  useEffect(()=>{
+    const map=mapRef.current;
+    if(!map||!center)return;
+    map.flyTo([center.lat,center.lng],19,{
+      animate:true,
+      duration:1.05,
+      easeLinearity:.2
+    });
+    setTimeout(()=>map.invalidateSize(),80);
   },[center?.lat,center?.lng,selectedId]);
 
-  if(!center)return null;
+  useEffect(()=>{
+    const map=mapRef.current;
+    const layerGroup=markerLayerRef.current;
+    if(!map||!layerGroup)return;
+    layerGroup.clearLayers();
 
-  const size=256;
-  const cx=tileX(center.lng,zoom),cy=tileY(center.lat,zoom);
-  const baseX=Math.floor(cx)-2,baseY=Math.floor(cy)-2;
-  const centerPx=(cx-baseX)*size,centerPy=(cy-baseY)*size;
-  const tiles=[];
+    places.slice(0,8).forEach((p,i)=>{
+      const active=p.id===selectedId;
+      const safeName=String(p.name||'Place').replace(/[<>&"]/g,'');
+      const html='<div class="mtLeafletMarker '+(active?'active':'')+'"><span>'+(i+1)+'</span>'+(active?'<b>'+safeName+'</b>':'')+'</div>';
+      const icon=L.divIcon({
+        className:'mtLeafletMarkerWrap',
+        html,
+        iconSize:[30,30],
+        iconAnchor:[15,15]
+      });
+      const marker=L.marker([p.lat,p.lng],{icon,title:p.name||'Place'}).addTo(layerGroup);
+      marker.on('click',()=>{
+        onSelect(p.id);
+        map.flyTo([p.lat,p.lng],19,{animate:true,duration:.9});
+      });
+    });
+  },[places,selectedId,onSelect]);
 
-  for(let y=0;y<5;y++)for(let x=0;x<5;x++){
-    const tx=baseX+x,ty=baseY+y;
-    const satellite='https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/'+zoom+'/'+ty+'/'+tx;
-    const street='https://tile.openstreetmap.org/'+zoom+'/'+tx+'/'+ty+'.png';
-    const labels='https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/'+zoom+'/'+ty+'/'+tx;
-
-    tiles.push(<React.Fragment key={tx+'-'+ty+'-'+zoom+'-'+layer}>
-      <img
-        className={'mtTile '+(layer==='satellite'?'satellite':'street')}
-        style={{left:x*size,top:y*size}}
-        src={layer==='satellite'?satellite:street}
-        alt=""
-        draggable="false"
-        onError={e=>{
-          const el=e.currentTarget;
-          if(!el.dataset.fallback){
-            el.dataset.fallback='1';
-            el.src=street;
-          }else{
-            el.style.opacity='.08';
-          }
-        }}
-      />
-      {layer==='satellite'&&<img
-        className="mtTile mtTileLabels"
-        style={{left:x*size,top:y*size}}
-        src={labels}
-        alt=""
-        draggable="false"
-        onError={e=>{e.currentTarget.style.display='none'}}
-      />}
-    </React.Fragment>);
-  }
-
-  const visiblePlaces=places.slice(0,8);
-
-  return <div className="mtTileMap">
+  return <div className="mtLeafletShell">
     <div className="mtMapLayerSwitch" role="group" aria-label="Map style">
       <button className={layer==='satellite'?'active':''} onClick={()=>setLayer('satellite')}>SATELLITE</button>
       <button className={layer==='street'?'active':''} onClick={()=>setLayer('street')}>STREET</button>
     </div>
-
-    <div className="mtTileCanvas" style={{left:'calc(50% - '+centerPx+'px)',top:'calc(50% - '+centerPy+'px)'}}>
-      {tiles}
-
-      {visiblePlaces.map((p,i)=>{
-        const px=(tileX(p.lng,zoom)-baseX)*size;
-        const py=(tileY(p.lat,zoom)-baseY)*size;
-        return <button
-          key={p.id}
-          className={'mtMapMarker '+(selectedId===p.id?'active':'')}
-          style={{left:px,top:py}}
-          onClick={()=>onSelect(p.id)}
-          title={p.name}
-          aria-label={'Show '+p.name}
-        >
-          <span>{i+1}</span>
-          {selectedId===p.id&&<b>{p.name}</b>}
-        </button>;
-      })}
-    </div>
-
-    <div className="mtMapCrosshair" aria-hidden="true"/>
-    <div className="mtMapZoom">
-      <button onClick={()=>setZoom(z=>Math.min(19,z+1))} aria-label="Zoom in">+</button>
-      <button onClick={()=>setZoom(z=>Math.max(12,z-1))} aria-label="Zoom out">−</button>
-    </div>
-    <div className="mtZoomReadout">Z{zoom} · {layer==='satellite'?'SATELLITE':'STREET'}</div>
-    <div className="mtMapAttribution">
-      {layer==='satellite'?'Imagery © Esri, Maxar, Earthstar Geographics':'© OpenStreetMap contributors'}
-    </div>
+    <div className="mtLeafletMap" ref={rootRef}/>
+    <div className="mtMapHint">SCROLL / PINCH / DRAG · CLICK A RESULT TO FLY TO ITS BUILDING</div>
+    <div className="mtZoomReadout">Z{Number(zoom).toFixed(zoom%1?1:0)} · {layer==='satellite'?'SATELLITE':'STREET'}</div>
   </div>;
 }
+
 
 function App(){
   const reduce=useReducedMotion();
@@ -820,7 +860,7 @@ function App(){
         <div className="mtResultsGrid">
           <PopWindow className="mtMapWindow">
             <div className="mtWindowTop"><span>LIVE MAP</span><b>{selected?selected.name.toUpperCase():'AREA'}</b></div>
-            {mapCenter&&<TileMap center={mapCenter} places={places} selectedId={selected?.id} onSelect={setSelectedId}/>}
+            {mapCenter&&<InteractiveMap center={mapCenter} places={places} selectedId={selected?.id} onSelect={setSelectedId}/>}
             <div className="mtMapFooter"><span>{selected?.distanceKm.toFixed(1)} KM AWAY</span><a href={selected?googleMapsUrl(selected):'#'} target="_blank" rel="noreferrer">OPEN IN GOOGLE MAPS ↗</a></div>
           </PopWindow>
 
