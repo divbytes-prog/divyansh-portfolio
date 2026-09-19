@@ -155,3 +155,200 @@ a{text-decoration:none}
 /* fast/deep mood controls */
 .mtAutoRow>div{display:flex;gap:7px;flex-wrap:wrap}
 .mtAutoRow button:disabled{opacity:.55;cursor:wait}
+
+
+/* resilient MoodTrip map + overflow fixes */
+.mtResultsGrid,
+.mtResultsGrid>*,
+.mtPlaceList,
+.mtPlace,
+.mtPlaceMain,
+.mtMapWindow{
+  min-width:0;
+}
+.mtResultsGrid{
+  grid-template-columns:minmax(0,.84fr) minmax(0,1.16fr);
+  width:100%;
+}
+.mtMapWindow .mtWindowTop b{
+  max-width:68%;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  text-align:right;
+}
+.mtTileMap{
+  position:relative;
+  width:100%;
+  height:560px;
+  margin-top:14px;
+  overflow:hidden;
+  background:
+    linear-gradient(rgba(154,102,84,.05) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(154,102,84,.05) 1px,transparent 1px),
+    #eee9e1;
+  background-size:32px 32px;
+  border:1px solid var(--line);
+  isolation:isolate;
+}
+.mtTileCanvas{
+  position:absolute;
+  width:1280px;
+  height:1280px;
+  transition:left .28s ease,top .28s ease;
+}
+.mtTile{
+  position:absolute;
+  width:256px;
+  height:256px;
+  display:block;
+  object-fit:cover;
+  user-select:none;
+  -webkit-user-drag:none;
+  filter:saturate(.62) contrast(.98) brightness(1.02);
+}
+.mtMapMarker{
+  position:absolute;
+  z-index:4;
+  width:28px;
+  height:28px;
+  margin:-14px 0 0 -14px;
+  border:2px solid var(--paper);
+  border-radius:50%;
+  background:var(--ink);
+  color:white;
+  box-shadow:0 4px 14px rgba(23,20,17,.24);
+  display:grid;
+  place-items:center;
+  transform:scale(.88);
+  transition:transform .18s ease,background .18s ease;
+}
+.mtMapMarker span{
+  font:500 8px 'IBM Plex Mono';
+}
+.mtMapMarker:hover,
+.mtMapMarker.active{
+  transform:scale(1.12);
+  background:var(--clay);
+  z-index:6;
+}
+.mtMapMarker.active:after{
+  content:'';
+  position:absolute;
+  inset:-8px;
+  border:1px solid var(--clay);
+  border-radius:50%;
+  opacity:.48;
+}
+.mtMapCrosshair{
+  position:absolute;
+  z-index:3;
+  pointer-events:none;
+  left:50%;
+  top:50%;
+  width:16px;
+  height:16px;
+  margin:-8px;
+  border:1px solid rgba(23,20,17,.26);
+  border-radius:50%;
+}
+.mtMapCrosshair:before,
+.mtMapCrosshair:after{
+  content:'';
+  position:absolute;
+  background:rgba(23,20,17,.22);
+}
+.mtMapCrosshair:before{left:50%;top:-8px;width:1px;height:30px}
+.mtMapCrosshair:after{top:50%;left:-8px;width:30px;height:1px}
+.mtMapZoom{
+  position:absolute;
+  z-index:8;
+  right:12px;
+  top:12px;
+  display:grid;
+  border:1px solid var(--line);
+  background:rgba(251,248,242,.94);
+  box-shadow:4px 4px 0 rgba(23,20,17,.08);
+}
+.mtMapZoom button{
+  width:38px;
+  height:36px;
+  border:0;
+  background:transparent;
+  font-size:22px;
+  line-height:1;
+}
+.mtMapZoom button+button{
+  border-top:1px solid var(--line);
+}
+.mtMapAttribution{
+  position:absolute;
+  z-index:8;
+  left:10px;
+  bottom:9px;
+  padding:5px 7px;
+  background:rgba(251,248,242,.9);
+  font:500 7px 'IBM Plex Mono';
+  color:#655d57;
+}
+.mtPlace{
+  width:100%;
+  grid-template-columns:48px minmax(0,1fr) auto;
+  overflow:hidden;
+}
+.mtPlaceMain{
+  overflow:hidden;
+}
+.mtPlace h3{
+  max-width:100%;
+  overflow-wrap:anywhere;
+  word-break:normal;
+}
+.mtPlaceTop{
+  flex-wrap:wrap;
+  min-width:0;
+}
+.mtPlaceTop span{
+  min-width:0;
+  overflow-wrap:anywhere;
+}
+.mtPlaceMain>p{
+  max-width:100%;
+  overflow-wrap:anywhere;
+}
+.mtPlaceSignals{
+  min-width:0;
+}
+.mtPlaceActions{
+  min-width:max-content;
+}
+@media(max-width:1100px){
+  .mtResultsGrid{
+    grid-template-columns:1fr;
+  }
+  .mtMapWindow{
+    position:relative;
+    top:auto;
+  }
+  .mtTileMap{
+    height:430px;
+  }
+}
+@media(max-width:620px){
+  .mtTileMap{
+    height:320px;
+  }
+  .mtMapWindow .mtWindowTop{
+    align-items:flex-start;
+  }
+  .mtMapWindow .mtWindowTop b{
+    max-width:58%;
+  }
+  .mtPlace{
+    grid-template-columns:34px minmax(0,1fr);
+  }
+  .mtPlaceActions{
+    grid-column:2;
+    min-width:0;
+  }
+}
