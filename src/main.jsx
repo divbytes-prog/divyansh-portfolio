@@ -331,12 +331,13 @@ function App(){
             <span>Good work takes patience.</span><span>Good work takes patience.</span><span>Good work takes patience.</span><span>Good work takes patience.</span>
           </motion.div>
         </div>
-        <div className="statementGrid shell"><div className="statementBlock" aria-hidden="true"/><FieldNotebook/>
-          <Reveal><p className="eyebrow">01 / ABOUT</p></Reveal>
-          <Reveal delay={.07}>
+        <div className="statementGrid shell"><div className="statementBlock" aria-hidden="true"/>
+          <Reveal className="statementLabel"><p className="eyebrow">01 / ABOUT</p></Reveal>
+          <Reveal className="statementCopy" delay={.07}>
             <h2>I care about making things <em>clear, useful and real.</em></h2>
             <p className="lede">I’m a Computer Science student at LNMIIT Jaipur. I work across algorithms, machine learning, data and web development, and I learn best by turning ideas into working products.</p>
           </Reveal>
+          <FieldNotebook/>
         </div>
       </section>
 
