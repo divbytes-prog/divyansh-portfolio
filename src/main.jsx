@@ -156,7 +156,7 @@ function FieldNotebook(){
     transition={{type:'spring',stiffness:90,damping:16}}
   >
     <div className="notebookTape" aria-hidden="true"/>
-    <div className="notebookHead"><span>DS / FIELD NOTES</span><small>VOL. 04 — 2026</small></div>
+    <div className="notebookHead"><span>DS / FIELD NOTES</span><small>VOL. 04 / 2026</small></div>
     <svg viewBox="0 0 520 280" role="img" aria-label="A hand-drawn build path from question to working product">
       <motion.path d="M42 214 C95 125 128 188 176 105 C219 30 278 74 309 142 C340 207 392 187 472 70"
         fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"
@@ -170,15 +170,16 @@ function FieldNotebook(){
     </svg>
     <div className="notebookStats">
       <div><b>250+</b><span>DSA reps</span></div>
-      <div><b>2024—29</b><span>LNMIIT</span></div>
+      <div><b>2024–29</b><span>LNMIIT</span></div>
       <div><b>BUILD</b><span>before perfect</span></div>
     </div>
     <div className="notebookScribble" aria-hidden="true">make it work → make it clear → make it yours</div>
   </motion.div>;
 }
 
-function LiveSignal(){
+function LiveSignal({paused=false}){
   const reduce=useReducedMotion();
+  const still=reduce||paused;
   return <motion.div
     className="liveSignal"
     initial={{opacity:0,scale:.9,y:20}}
@@ -191,13 +192,13 @@ function LiveSignal(){
       <small>DS/26</small>
     </div>
     <div className="radar">
-      <motion.div className="orbit one" animate={reduce?undefined:{rotate:360}} transition={{duration:14,repeat:Infinity,ease:'linear'}}>
+      <motion.div className="orbit one" animate={still?undefined:{rotate:360}} transition={{duration:14,repeat:Infinity,ease:'linear'}}>
         <span/>
       </motion.div>
-      <motion.div className="orbit two" animate={reduce?undefined:{rotate:-360}} transition={{duration:9,repeat:Infinity,ease:'linear'}}>
+      <motion.div className="orbit two" animate={still?undefined:{rotate:-360}} transition={{duration:9,repeat:Infinity,ease:'linear'}}>
         <span/>
       </motion.div>
-      <motion.div className="pulseDot" animate={reduce?undefined:{scale:[1,1.8,1],opacity:[.9,.35,.9]}} transition={{duration:2.2,repeat:Infinity}}/>
+      <motion.div className="pulseDot" animate={still?undefined:{scale:[1,1.8,1],opacity:[.9,.35,.9]}} transition={{duration:2.2,repeat:Infinity}}/>
       <div className="cross x"/><div className="cross y"/>
     </div>
     <div className="signalBars">
@@ -205,7 +206,7 @@ function LiveSignal(){
         <motion.i
           key={i}
           style={{height:`${h}%`}}
-          animate={reduce?undefined:{scaleY:[.55,1,.72,.94,.55]}}
+          animate={still?undefined:{scaleY:[.55,1,.72,.94,.55]}}
           transition={{duration:1.8+(i%3)*.35,repeat:Infinity,delay:i*.06,ease:'easeInOut'}}
         />
       )}
@@ -214,17 +215,18 @@ function LiveSignal(){
   </motion.div>;
 }
 
-function AmbientField(){
+function AmbientField({paused=false}){
   const reduce=useReducedMotion();
+  const still=reduce||paused;
   return <div className="ambientField" aria-hidden="true">
-    <motion.span className="blob blobA" animate={reduce?undefined:{x:[0,35,-10,0],y:[0,-24,18,0],scale:[1,1.08,.96,1]}} transition={{duration:13,repeat:Infinity,ease:'easeInOut'}}/>
-    <motion.span className="blob blobB" animate={reduce?undefined:{x:[0,-28,15,0],y:[0,22,-15,0],scale:[1,.94,1.06,1]}} transition={{duration:16,repeat:Infinity,ease:'easeInOut'}}/>
-    <motion.span className="blob blobC" animate={reduce?undefined:{rotate:[0,180,360],scale:[1,1.12,1]}} transition={{duration:20,repeat:Infinity,ease:'linear'}}/>
+    <motion.span className="blob blobA" animate={still?undefined:{x:[0,35,-10,0],y:[0,-24,18,0],scale:[1,1.08,.96,1]}} transition={{duration:13,repeat:Infinity,ease:'easeInOut'}}/>
+    <motion.span className="blob blobB" animate={still?undefined:{x:[0,-28,15,0],y:[0,22,-15,0],scale:[1,.94,1.06,1]}} transition={{duration:16,repeat:Infinity,ease:'easeInOut'}}/>
+    <motion.span className="blob blobC" animate={still?undefined:{rotate:[0,180,360],scale:[1,1.12,1]}} transition={{duration:20,repeat:Infinity,ease:'linear'}}/>
   </div>;
 }
 
 function App(){
-  const[menu,setMenu]=useState(false);
+  const[menu,setMenu]=useState(false);const[motionPaused,setMotionPaused]=useState(false);
   const reduce=useReducedMotion();
   const{scrollYProgress}=useScroll();
   const progress=useSpring(scrollYProgress,{stiffness:120,damping:24,mass:.25});
@@ -257,9 +259,14 @@ function App(){
       transition={{duration:.7,ease:[.16,1,.3,1]}}
     >
       <a className="wordmark" href="#top" aria-label="Divyansh Singh, back to top"><span>DIVYANSH</span><b>SINGH</b></a>
-      <button className="menuButton" type="button" aria-expanded={menu} aria-controls="site-menu" onClick={()=>setMenu(v=>!v)}>
-        {menu?'CLOSE':'MENU'}
-      </button>
+      <div className="navUtility">
+        <button className="motionToggle" type="button" aria-pressed={motionPaused} onClick={()=>setMotionPaused(v=>!v)}>
+          {motionPaused?'PLAY MOTION':'PAUSE MOTION'}
+        </button>
+        <button className="menuButton" type="button" aria-expanded={menu} aria-controls="site-menu" onClick={()=>setMenu(v=>!v)}>
+          {menu?'CLOSE':'MENU'}
+        </button>
+      </div>
       <div className="navlinks desktopNav">
         <a href="#about">About</a><a href="#work">Work</a><a href="#stack">Stack</a><a href="#contact">Contact</a>
         <MagneticLink className="navArrow" href="https://github.com/divbytes-prog" external>↗</MagneticLink>
@@ -293,7 +300,7 @@ function App(){
           <AeroShards
             backgroundColor="#f2eee7" shardColor="#b69b8c" accentColor="#9a6654"
             placement="full" flow="stream" material="pearl" detail="balanced"
-            scale={1} spread={1.15} depth={1} speed={.32} spin={.48}
+            scale={1} spread={1.15} depth={1} speed={motionPaused?0:.32} spin={motionPaused?0:.48}
             interaction="repel" density={.72} shardSize={.78} turbulence={.62}
             glow={.22} edgeSoftness={2} bloom={.14} grain={.035}
             interactionRadius={1.2} interactionStrength={.24} rippleIntensity={.3}
@@ -320,14 +327,14 @@ function App(){
             </div>
           </motion.div>
 
-          <LiveSignal/>
+          <LiveSignal paused={motionPaused}/>
         </div>
       </section>
 
       <section className="statement" id="about">
-        <AmbientField/>
+        <AmbientField paused={motionPaused}/>
         <div className="marquee" aria-hidden="true">
-          <motion.div animate={reduce?undefined:{x:['0%','-50%']}} transition={{duration:32,repeat:Infinity,ease:'linear'}}>
+          <motion.div animate={(reduce||motionPaused)?undefined:{x:['0%','-50%']}} transition={{duration:32,repeat:Infinity,ease:'linear'}}>
             <span>Good work takes patience.</span><span>Good work takes patience.</span><span>Good work takes patience.</span><span>Good work takes patience.</span>
           </motion.div>
         </div>
@@ -357,7 +364,7 @@ function App(){
             transition={{type:'spring',stiffness:115,damping:16,delay:i*.08}}
             whileHover={reduce?undefined:{y:-10,scale:1.025,rotate:i%2?-.6:.6}}
           >
-            <div className="stageTop"><span>{n}</span><b>{title}</b><motion.i animate={reduce?undefined:{rotate:[0,90,0]}} transition={{duration:3,repeat:Infinity,delay:i*.35}}>+</motion.i></div>
+            <div className="stageTop"><span>{n}</span><b>{title}</b><motion.i animate={(reduce||motionPaused)?undefined:{rotate:[0,90,0]}} transition={{duration:3,repeat:Infinity,delay:i*.35}}>+</motion.i></div>
             <p>{desc}</p>
           </motion.article>)}
         </div>
@@ -366,7 +373,7 @@ function App(){
           <div className="flow" aria-label="Build process: question to code to system to product">
             {['QUESTION','CODE','SYSTEM','PRODUCT'].map((item,i)=><React.Fragment key={item}>
               <motion.span whileHover={{scale:1.08,color:'#8a6f60'}}>{item}</motion.span>
-              {i<3&&<div className="flowLine"><motion.i animate={reduce?undefined:{x:['-100%','120%']}} transition={{duration:2.4,repeat:Infinity,delay:i*.32,ease:'easeInOut'}}/></div>}
+              {i<3&&<div className="flowLine"><motion.i animate={(reduce||motionPaused)?undefined:{x:['-100%','120%']}} transition={{duration:2.4,repeat:Infinity,delay:i*.32,ease:'easeInOut'}}/></div>}
             </React.Fragment>)}
           </div>
         </Reveal>
@@ -415,17 +422,17 @@ function App(){
             viewport={{once:true,amount:.5}}
             transition={{type:'spring',stiffness:100,damping:18,delay:i*.06}}
             whileHover={reduce?undefined:{x:8}}
-          ><span>{a}</span><p>{b}</p><motion.b animate={reduce?undefined:{x:[0,7,0]}} transition={{duration:2.4,repeat:Infinity,delay:i*.25}}>↗</motion.b></motion.div>)}
+          ><span>{a}</span><p>{b}</p><motion.b animate={(reduce||motionPaused)?undefined:{x:[0,7,0]}} transition={{duration:2.4,repeat:Infinity,delay:i*.25}}>↗</motion.b></motion.div>)}
         </div>
       </section>
 
       <section className="contact" id="contact">
-        <motion.div className="contactGlow" aria-hidden="true" animate={reduce?undefined:{scale:[1,1.12,.95,1],x:[0,-40,25,0],y:[0,20,-15,0]}} transition={{duration:10,repeat:Infinity,ease:'easeInOut'}}/>
-        <AmbientField/>
+        <motion.div className="contactGlow" aria-hidden="true" animate={(reduce||motionPaused)?undefined:{scale:[1,1.12,.95,1],x:[0,-40,25,0],y:[0,20,-15,0]}} transition={{duration:10,repeat:Infinity,ease:'easeInOut'}}/>
+        <AmbientField paused={motionPaused}/>
         <div className="shell contactInner">
           <Reveal><p className="eyebrow">05 / CONTACT</p></Reveal>
           <Reveal delay={.06}><h2>Have something interesting?<br/><em>Let’s talk.</em></h2></Reveal>
-          <Reveal delay={.12}><p>Internships, collaborations, research, projects—or just a good technical conversation.</p></Reveal>
+          <Reveal delay={.12}><p>Internships, collaborations, research, projects, or just a good technical conversation.</p></Reveal>
           <Reveal delay={.18}>
             <MagneticLink className="contactButton" href="mailto:24DCS032@lnmiit.ac.in"><span>24DCS032@LNMIIT.AC.IN</span><b>↗</b></MagneticLink>
           </Reveal>
