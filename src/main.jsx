@@ -691,7 +691,7 @@ function App(){
         </div>
         <Reveal className="renderFeature">
           <div className="renderFeatureCopy">
-            <span>LIVE / 03A</span>
+            <span>PROJECT / 03A</span>
             <p>Each project gets a live visual model that reflects what the project actually does.</p>
           </div>
           <RealtimeViewport/>
