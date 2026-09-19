@@ -1135,3 +1135,50 @@ a:focus-visible,button:focus-visible{outline:2px solid var(--clay);outline-offse
     display:none;
   }
 }
+
+
+/* project systems view refinement */
+.projectStreamCard small{
+  display:block;
+  margin-top:10px;
+  max-width:520px;
+  font:500 9px 'IBM Plex Mono';
+  line-height:1.5;
+  letter-spacing:.05em;
+  color:#d5b7a7;
+}
+.renderHud.top b{
+  max-width:48%;
+  text-align:right;
+  color:#d8c7bd;
+}
+.renderHud.bottom b{
+  color:#d7b4a3;
+}
+.projectStreamTabs button.active{
+  box-shadow:inset 3px 0 0 #c28d76;
+}
+.renderFeatureCopy span{
+  color:var(--clay-deep);
+}
+.renderFeatureCopy p{
+  max-width:170px;
+}
+@media(max-width:880px){
+  .renderHud.top b{
+    max-width:56%;
+    font-size:7px;
+  }
+  .projectStreamCard small{
+    max-width:440px;
+  }
+}
+@media(max-width:600px){
+  .projectStreamCard small{
+    font-size:8px;
+    margin-top:8px;
+  }
+  .renderHud.top b{
+    max-width:62%;
+  }
+}
