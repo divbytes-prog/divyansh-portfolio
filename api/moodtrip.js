@@ -326,9 +326,26 @@ async function googleReviews(name,lat,lng){
   const detail=await fetchJson('https://places.googleapis.com/v1/places/'+encodeURIComponent(place.id),{
     headers:{
       'X-Goog-Api-Key':key,
-      'X-Goog-FieldMask':'id,displayName,formattedAddress,rating,userRatingCount,reviews,googleMapsUri,googleMapsLinks,primaryTypeDisplayName'
+      'X-Goog-FieldMask':'id,displayName,formattedAddress,rating,userRatingCount,reviews,photos,googleMapsUri,googleMapsLinks,primaryTypeDisplayName'
     }
   },6500);
+
+  const photos=[];
+  for(const photo of (detail.photos||[]).slice(0,4)){
+    try{
+      const media=await fetchJson(
+        'https://places.googleapis.com/v1/'+photo.name+'/media?maxWidthPx=1200&maxHeightPx=900&skipHttpRedirect=true&key='+encodeURIComponent(key),
+        {},
+        5000
+      );
+      if(media?.photoUri)photos.push({
+        uri:media.photoUri,
+        width:photo.widthPx||null,
+        height:photo.heightPx||null,
+        attribution:(photo.authorAttributions||[]).map(a=>a.displayName).filter(Boolean).join(', ')
+      });
+    }catch{}
+  }
 
   return {
     configured:true,
@@ -339,6 +356,7 @@ async function googleReviews(name,lat,lng){
     rating:detail.rating||null,
     ratingCount:detail.userRatingCount||0,
     type:detail.primaryTypeDisplayName?.text||'',
+    photos,
     mapsUrl:detail.googleMapsUri||mapsUrl,
     reviewsUrl:detail.googleMapsLinks?.reviewsUri||detail.googleMapsUri||mapsUrl,
     reviews:(detail.reviews||[]).slice(0,5).map(r=>({
