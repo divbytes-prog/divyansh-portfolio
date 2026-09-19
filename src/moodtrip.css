@@ -1386,10 +1386,14 @@ a{text-decoration:none}
   background:#171411;
   overflow:hidden;
 }
-.mtStreetCamera>img{
+.mtStreetCamera>img,
+.mtStreetCamera>iframe{
   width:100%;
   height:100%;
   display:block;
+  border:0;
+}
+.mtStreetCamera>img{
   object-fit:cover;
 }
 .mtStreetCameraState,
