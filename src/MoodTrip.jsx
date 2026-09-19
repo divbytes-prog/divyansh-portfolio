@@ -397,8 +397,10 @@ function InteractiveMap({center,places,selectedId,onSelect}){
   const baseRef=useRef(null);
   const labelsRef=useRef(null);
   const markerLayerRef=useRef(null);
+  const footprintLayerRef=useRef(null);
   const [layer,setLayer]=useState('satellite');
-  const [zoom,setZoom]=useState(19);
+  const [zoom,setZoom]=useState(20);
+  const [buildingState,setBuildingState]=useState('idle');
 
   useEffect(()=>{
     if(!rootRef.current||!center||mapRef.current)return;
@@ -415,11 +417,12 @@ function InteractiveMap({center,places,selectedId,onSelect}){
       zoomSnap:.5,
       zoomDelta:.5,
       minZoom:3,
-      maxZoom:21
-    }).setView([center.lat,center.lng],19);
+      maxZoom:22
+    }).setView([center.lat,center.lng],20);
 
     L.control.zoom({position:'topright'}).addTo(map);
     markerLayerRef.current=L.layerGroup().addTo(map);
+    footprintLayerRef.current=L.layerGroup().addTo(map);
     mapRef.current=map;
 
     const timer=setTimeout(()=>map.invalidateSize(),80);
@@ -434,6 +437,7 @@ function InteractiveMap({center,places,selectedId,onSelect}){
       baseRef.current=null;
       labelsRef.current=null;
       markerLayerRef.current=null;
+      footprintLayerRef.current=null;
     };
   },[center?.lat,center?.lng]);
 
@@ -448,11 +452,11 @@ function InteractiveMap({center,places,selectedId,onSelect}){
       baseRef.current=L.tileLayer(
         'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
         {
-          maxNativeZoom:19,
-          maxZoom:21,
+          maxNativeZoom:20,
+          maxZoom:22,
           tileSize:256,
           updateWhenZooming:false,
-          keepBuffer:3,
+          keepBuffer:4,
           attribution:'Imagery © Esri, Maxar, Earthstar Geographics'
         }
       ).addTo(map);
@@ -460,9 +464,9 @@ function InteractiveMap({center,places,selectedId,onSelect}){
         'https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
         {
           maxNativeZoom:19,
-          maxZoom:21,
+          maxZoom:22,
           pane:'overlayPane',
-          opacity:.88,
+          opacity:.82,
           attribution:''
         }
       ).addTo(map);
@@ -471,8 +475,8 @@ function InteractiveMap({center,places,selectedId,onSelect}){
         'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
         {
           maxNativeZoom:19,
-          maxZoom:21,
-          keepBuffer:3,
+          maxZoom:22,
+          keepBuffer:4,
           attribution:'© OpenStreetMap contributors'
         }
       ).addTo(map);
@@ -481,13 +485,67 @@ function InteractiveMap({center,places,selectedId,onSelect}){
 
   useEffect(()=>{
     const map=mapRef.current;
-    if(!map||!center)return;
-    map.flyTo([center.lat,center.lng],19,{
+    const footprintLayer=footprintLayerRef.current;
+    if(!map||!center||!footprintLayer)return;
+
+    let alive=true;
+    footprintLayer.clearLayers();
+    setBuildingState('loading');
+
+    map.flyTo([center.lat,center.lng],20,{
       animate:true,
-      duration:1.05,
+      duration:.8,
       easeLinearity:.2
     });
-    setTimeout(()=>map.invalidateSize(),80);
+
+    (async()=>{
+      try{
+        const d=await apiJson(
+          '/api/moodtrip?action=footprint&lat='+encodeURIComponent(center.lat)+'&lng='+encodeURIComponent(center.lng),
+          {},
+          6500
+        );
+        if(!alive)return;
+        const fp=d.footprint;
+        if(fp?.coordinates?.length>=3){
+          const polygon=L.polygon(fp.coordinates,{
+            color:'#f1b09a',
+            weight:4,
+            opacity:1,
+            fillColor:'#9a6654',
+            fillOpacity:.16,
+            dashArray:'8 5',
+            pane:'overlayPane'
+          }).addTo(footprintLayer);
+
+          polygon.bindTooltip(fp.name||'Selected building',{
+            permanent:false,
+            direction:'top',
+            className:'mtBuildingTooltip'
+          });
+
+          const bounds=polygon.getBounds();
+          if(bounds.isValid()){
+            map.flyToBounds(bounds,{
+              padding:[70,70],
+              maxZoom:21,
+              duration:1.05
+            });
+          }
+          setBuildingState('found');
+        }else{
+          map.flyTo([center.lat,center.lng],21,{animate:true,duration:.9});
+          setBuildingState('none');
+        }
+      }catch{
+        if(!alive)return;
+        map.flyTo([center.lat,center.lng],21,{animate:true,duration:.9});
+        setBuildingState('none');
+      }
+      setTimeout(()=>map.invalidateSize(),80);
+    })();
+
+    return()=>{alive=false};
   },[center?.lat,center?.lng,selectedId]);
 
   useEffect(()=>{
@@ -507,10 +565,7 @@ function InteractiveMap({center,places,selectedId,onSelect}){
         iconAnchor:[15,15]
       });
       const marker=L.marker([p.lat,p.lng],{icon,title:p.name||'Place'}).addTo(layerGroup);
-      marker.on('click',()=>{
-        onSelect(p.id);
-        map.flyTo([p.lat,p.lng],19,{animate:true,duration:.9});
-      });
+      marker.on('click',()=>onSelect(p.id));
     });
   },[places,selectedId,onSelect]);
 
@@ -519,8 +574,12 @@ function InteractiveMap({center,places,selectedId,onSelect}){
       <button className={layer==='satellite'?'active':''} onClick={()=>setLayer('satellite')}>SATELLITE</button>
       <button className={layer==='street'?'active':''} onClick={()=>setLayer('street')}>STREET</button>
     </div>
+    <div className={'mtBuildingStatus '+buildingState}>
+      <i/>
+      <span>{buildingState==='loading'?'FINDING BUILDING OUTLINE':buildingState==='found'?'EXACT BUILDING OUTLINE':'EXACT COORDINATE ZOOM'}</span>
+    </div>
     <div className="mtLeafletMap" ref={rootRef}/>
-    <div className="mtMapHint">SCROLL / PINCH / DRAG · CLICK A RESULT TO FLY TO ITS BUILDING</div>
+    <div className="mtMapHint">SCROLL / PINCH / DRAG · SELECT A RESULT TO FLY TO ITS BUILDING</div>
     <div className="mtZoomReadout">Z{Number(zoom).toFixed(zoom%1?1:0)} · {layer==='satellite'?'SATELLITE':'STREET'}</div>
   </div>;
 }
@@ -794,7 +853,9 @@ function App(){
 
   const mapCenter=useMemo(()=>selected?{lat:selected.lat,lng:selected.lng}:coords,[selected,coords]);
 
-  const googleMapsUrl=place=>'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(place.name+' '+(locationLabel||''))+(place.googlePlaceId?'&query_place_id='+encodeURIComponent(place.googlePlaceId):'');
+  const googleMapsUrl=place=>'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent([place.name,place.address,locationLabel].filter(Boolean).join(', '))+(place.googlePlaceId?'&query_place_id='+encodeURIComponent(place.googlePlaceId):'');
+  const googleSatelliteUrl=place=>'https://www.google.com/maps/@?api=1&map_action=map&center='+encodeURIComponent(place.lat+','+place.lng)+'&zoom=21&basemap=satellite';
+  const googleStreetViewUrl=place=>'https://www.google.com/maps/@?api=1&map_action=pano&viewpoint='+encodeURIComponent(place.lat+','+place.lng);
 
   return <main className="mtApp">
     <motion.div className="mtScrollProgress" style={{scaleX:progress}}/>
@@ -964,7 +1025,14 @@ function App(){
           <PopWindow className="mtMapWindow">
             <div className="mtWindowTop"><span>LIVE MAP</span><b>{selected?selected.name.toUpperCase():'AREA'}</b></div>
             {mapCenter&&<InteractiveMap center={mapCenter} places={places} selectedId={selected?.id} onSelect={setSelectedId}/>}
-            <div className="mtMapFooter"><span>{selected?.distanceKm.toFixed(1)} KM AWAY</span><a href={selected?googleMapsUrl(selected):'#'} target="_blank" rel="noreferrer">OPEN IN GOOGLE MAPS ↗</a></div>
+            <div className="mtMapFooter">
+              <span>{selected?.distanceKm.toFixed(1)} KM AWAY</span>
+              <div>
+                <a href={selected?googleSatelliteUrl(selected):'#'} target="_blank" rel="noreferrer">GOOGLE SATELLITE ↗</a>
+                <a href={selected?googleStreetViewUrl(selected):'#'} target="_blank" rel="noreferrer">STREET VIEW ↗</a>
+                <a href={selected?googleMapsUrl(selected):'#'} target="_blank" rel="noreferrer">MAPS ↗</a>
+              </div>
+            </div>
           </PopWindow>
 
           <div className="mtPlaceList">
@@ -1052,12 +1120,12 @@ function App(){
           </>}
 
           {reviewState!=='loading'&&(!reviewData?.configured||!reviewData?.found)&&<div className="mtReviewUnavailable">
-            <span>LIVE GOOGLE DATA</span>
-            <h4>{reviewData?.configured?'No matching Google Place was returned.':'Google Places key not connected yet.'}</h4>
-            <p>MoodTrip will not scrape or invent Google ratings. The button below opens the real Google Maps listing so users can read the current rating and reviews directly.</p>
+            <span>LIVE GOOGLE REVIEWS</span>
+            <h4>{reviewData?.configured?'Open the verified Google listing.':'Read the current reviews on Google Maps.'}</h4>
+            <p>Ratings and written reviews change constantly. MoodTrip opens the live Google listing for the latest review score and comments instead of showing stale or invented data.</p>
           </div>}
 
-          <a className="mtGoogleReviewButton" href={reviewData?.mapsUrl||googleMapsUrl(reviewPlace)} target="_blank" rel="noreferrer">OPEN ALL GOOGLE REVIEWS ↗</a>
+          <a className="mtGoogleReviewButton" href={reviewData?.reviewsUrl||reviewData?.mapsUrl||googleMapsUrl(reviewPlace)} target="_blank" rel="noreferrer">VIEW LIVE GOOGLE REVIEWS ↗</a>
         </motion.aside>
       </>}
     </AnimatePresence>
