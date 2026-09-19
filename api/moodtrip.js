@@ -586,8 +586,14 @@ async function discoverReviewUrls(name,address,headers){
   pages.forEach(html=>extractPreferredUrls(html).forEach(u=>urls.add(u)));
 
   if(!urls.size){
-    const reader=await jinaRead(googleSearch,headers,9000);
-    extractPreferredUrls(reader).forEach(u=>urls.add(u));
+    const readerTargets=[
+      googleSearch,
+      'https://www.bing.com/search?count=12&setlang=en-IN&q='+encodeURIComponent(q),
+      'https://search.brave.com/search?source=web&q='+encodeURIComponent(q),
+      'https://www.mojeek.com/search?q='+encodeURIComponent(q)
+    ];
+    const rendered=await Promise.all(readerTargets.map(u=>jinaRead(u,headers,9000)));
+    rendered.forEach(page=>extractPreferredUrls(page).forEach(u=>urls.add(u)));
   }
 
   return [...urls].slice(0,8);
