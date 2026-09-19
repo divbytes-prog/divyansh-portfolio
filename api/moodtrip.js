@@ -527,11 +527,16 @@ function preferredReviewUrl(url=''){
 
 function extractPreferredUrls(html=''){
   const urls=new Set();
-  const decoded=decodeHtml(String(html).replace(/\\u0026/g,'&').replace(/\\\//g,'/'));
+  const raw=String(html)
+    .replace(/\\u0026/g,'&')
+    .replace(/\\\//g,'/')
+    .replace(/&amp;/g,'&')
+    .replace(/&quot;/g,'"')
+    .replace(/&#x27;|&#39;/g,"'");
 
-  const abs=decoded.match(/https?:\/\/[^\s"'<>]+/g)||[];
-  abs.forEach(raw=>{
-    const cleaned=raw.replace(/[),.;]+$/,'');
+  const abs=raw.match(/https?:\/\/[^\s"'<>\\]+/g)||[];
+  abs.forEach(candidate=>{
+    const cleaned=candidate.replace(/[),.;]+$/,'');
     if(preferredReviewUrl(cleaned))urls.add(cleaned);
   });
 
@@ -541,7 +546,7 @@ function extractPreferredUrls(html=''){
   ];
   for(const re of encodedPatterns){
     let m;
-    while((m=re.exec(String(html)))){
+    while((m=re.exec(raw))){
       try{
         const u=decodeURIComponent(m[1]);
         if(preferredReviewUrl(u))urls.add(u);
@@ -549,63 +554,18 @@ function extractPreferredUrls(html=''){
     }
   }
 
-  return [...urls];
-}
-
-
-async function jinaRead(url,headers,timeout=8500){
-  try{
-    return await fetchHtml('https://r.jina.ai/'+url,headers,timeout);
-  }catch{return ''}
-}
-
-function reviewsFromReaderMarkdown(markdown,url){
-  const items=[];
-  const text=String(markdown||'').replace(/\r/g,'');
-  const re=/([1-5])\/5\s*([^\n]{1,90})\n+([^\n]{0,120}?(?:Google|Tripadvisor|review)[^\n]*)\n+([\s\S]{20,420}?)(?=\n+[1-5]\/5|\n+See more reviews|\n+All Google Maps reviews|\n+All Tripadvisor reviews|\n+##|\n+#|$)/gi;
-  let m;
-  while((m=re.exec(text))){
-    const rating=Number(m[1]);
-    const author=decodeHtml(m[2]).trim()||'Public reviewer';
-    const meta=decodeHtml(m[3]).trim();
-    const body=decodeHtml(m[4]).replace(/\s+/g,' ').trim();
-    if(body.length<20)continue;
-    items.push({
-      title:author+' · '+rating+'★',
-      snippet:body.slice(0,360),
-      source:sourceLabel(url),
-      url,
-      rating,
-      author,
-      meta,
-      reviewCount:null,
-      sourceRating:null,
-      businessName:''
+  const escapedPatterns=[
+    /https?:\\\/\\\/[^\s"'<>\\]+/gi
+  ];
+  for(const re of escapedPatterns){
+    const matches=raw.match(re)||[];
+    matches.forEach(v=>{
+      const u=v.replace(/\\\//g,'/');
+      if(preferredReviewUrl(u))urls.add(u);
     });
-    if(items.length>=4)break;
   }
 
-  if(items.length)return items;
-
-  const scoreMatch=text.match(/Review score\s*\n+\s*([1-5](?:\.\d)?)\s*\n+out of 5[\s\S]{0,120}?(\d[\d,]*)\s+reviews/iu);
-  const summaryMatch=text.match(/## Reviews\s*\n+([\s\S]{40,700}?)(?=\n+Review score|\n+##|\n+#)/iu);
-  if(scoreMatch||summaryMatch){
-    const rating=scoreMatch?Number(scoreMatch[1]):null;
-    const count=scoreMatch?Number(scoreMatch[2].replace(/,/g,'')):null;
-    return [{
-      title:(rating?rating+'★ · ':'')+'Public review summary',
-      snippet:decodeHtml(summaryMatch?.[1]||'Public rating data is available on this source.').replace(/\s+/g,' ').trim().slice(0,360),
-      source:sourceLabel(url),
-      url,
-      rating,
-      author:null,
-      reviewCount:count,
-      sourceRating:rating,
-      businessName:''
-    }];
-  }
-
-  return [];
+  return [...urls];
 }
 
 async function discoverReviewUrls(name,address,headers){
