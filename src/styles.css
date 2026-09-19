@@ -1080,3 +1080,141 @@ a:focus-visible,button:focus-visible{outline:2px solid var(--clay);outline-offse
   .skillNetwork,
   .skillNetwork canvas{min-height:280px}
 }
+
+
+/* density pass — remove accidental dead space after adding live systems */
+.statement{
+  padding:74px 0 82px;
+}
+.statementGrid{
+  margin-top:56px;
+}
+.process,.work,.profile{
+  padding:88px 0;
+}
+.work{
+  padding-top:96px;
+}
+.stageGrid{
+  margin-top:56px;
+}
+.stageGrid article{
+  min-height:190px;
+}
+.stageGrid article:nth-child(2){margin-top:22px}
+.stageGrid article:nth-child(3){margin-top:8px}
+.stageGrid article:nth-child(4){margin-top:30px}
+.stageGrid article>p{
+  margin-top:42px;
+}
+.processLiveGrid{
+  margin-top:42px;
+}
+.buildConsole{
+  min-height:285px;
+}
+.consoleBody{
+  min-height:205px;
+}
+.flowWrap{
+  margin-top:40px;
+}
+.renderFeature{
+  width:96%;
+  margin:54px 0 22px auto;
+}
+.projectGrid{
+  margin-top:48px;
+}
+.projectCard{
+  min-height:330px;
+}
+.projectCard:nth-child(1){
+  min-height:590px;
+}
+.projectCard:nth-child(2),
+.projectCard:nth-child(3){
+  min-height:285px;
+}
+.projectCard:nth-child(4),
+.projectCard:nth-child(5){
+  min-height:300px;
+}
+.profileGrid{
+  gap:7vw;
+}
+.profileLiveRow{
+  margin-top:54px;
+}
+.skillNetwork,
+.skillNetwork canvas{
+  min-height:350px;
+}
+.stack{
+  margin-top:56px;
+}
+.stack>div{
+  padding:18px 0;
+}
+.contact{
+  padding:104px 0;
+}
+.contact h2{
+  margin:30px 0 32px;
+}
+.contactButton{
+  margin-top:36px;
+}
+.footerInner{
+  min-height:130px;
+  padding:28px 0;
+}
+
+@media(max-width:1150px){
+  .process,.work,.profile{padding:78px 0}
+  .stageGrid{margin-top:48px}
+  .processLiveGrid{margin-top:36px}
+  .renderFeature{margin-top:46px}
+  .projectGrid{margin-top:42px}
+  .profileLiveRow{margin-top:46px}
+  .stack{margin-top:48px}
+}
+@media(max-width:880px){
+  .statement{padding:62px 0 70px}
+  .statementGrid{margin-top:42px}
+  .process,.work,.profile{padding:68px 0}
+  .stageGrid{margin-top:42px}
+  .stageGrid article{min-height:165px}
+  .stageGrid article:nth-child(n){margin-top:0}
+  .processLiveGrid{margin-top:34px}
+  .renderFeature{margin-top:38px}
+  .projectGrid{margin-top:36px}
+  .projectCard,.projectCard:nth-child(n){min-height:285px}
+  .profileLiveRow{margin-top:38px}
+  .skillNetwork,.skillNetwork canvas{min-height:320px}
+  .stack{margin-top:42px}
+  .contact{padding:78px 0}
+}
+@media(max-width:600px){
+  .statement{padding:54px 0 60px}
+  .statementGrid{margin-top:36px}
+  .process,.work,.profile{padding:58px 0}
+  .work{padding-top:66px}
+  .stageGrid{margin-top:34px}
+  .stageGrid article{min-height:140px}
+  .stageGrid article>p{margin-top:26px}
+  .processLiveGrid{margin-top:28px}
+  .buildConsole{min-height:260px}
+  .flowWrap{margin-top:30px}
+  .renderFeature{margin-top:30px}
+  .projectGrid{margin-top:30px}
+  .projectCard,.projectCard:nth-child(n){min-height:250px}
+  .profileLiveRow{margin-top:30px}
+  .skillNetwork,.skillNetwork canvas{min-height:275px}
+  .stack{margin-top:34px}
+  .stack>div{padding:15px 0}
+  .contact{padding:68px 0}
+  .contact h2{margin:24px 0}
+  .contactButton{margin-top:28px}
+  .footerInner{min-height:160px;padding:26px 0}
+}
