@@ -968,3 +968,170 @@ a:focus-visible,button:focus-visible{outline:2px solid var(--clay);outline-offse
     font-size:13px;
   }
 }
+
+
+/* resume project stream inside live render */
+.projectStreamCard{
+  position:absolute;
+  left:24px;
+  bottom:54px;
+  z-index:3;
+  width:min(560px,48%);
+  pointer-events:none;
+}
+.projectStreamIndex{
+  display:block;
+  margin-bottom:10px;
+  font:500 10px 'IBM Plex Mono';
+  letter-spacing:.12em;
+  color:#c28d76;
+}
+.projectStreamCard h3{
+  margin:0;
+  max-width:520px;
+  font:500 clamp(26px,2.5vw,42px)/.98 'Bricolage Grotesque',sans-serif;
+  letter-spacing:-.045em;
+  color:#f5ece6;
+}
+.projectStreamCard p{
+  margin:14px 0 12px;
+  max-width:540px;
+  font:400 14px/1.55 'Bricolage Grotesque',sans-serif;
+  color:#cfc2ba;
+}
+.projectStreamCard b{
+  display:block;
+  font:500 9px 'IBM Plex Mono';
+  letter-spacing:.08em;
+  color:#a8ad93;
+}
+.projectStreamTabs{
+  position:absolute;
+  z-index:4;
+  right:18px;
+  top:52px;
+  width:min(360px,34%);
+  display:grid;
+  border-top:1px solid rgba(242,238,231,.16);
+}
+.projectStreamTabs button{
+  appearance:none;
+  border:0;
+  border-bottom:1px solid rgba(242,238,231,.12);
+  background:rgba(33,27,24,.38);
+  color:#aa9e97;
+  display:grid;
+  grid-template-columns:30px 1fr;
+  gap:10px;
+  align-items:center;
+  padding:10px 8px;
+  text-align:left;
+  cursor:pointer;
+  transition:background .25s ease,color .25s ease,transform .25s ease;
+}
+.projectStreamTabs button:hover{
+  background:rgba(154,102,84,.14);
+  color:#f0e5de;
+  transform:translateX(-3px);
+}
+.projectStreamTabs button.active{
+  background:rgba(154,102,84,.22);
+  color:#fff;
+}
+.projectStreamTabs span{
+  font:500 8px 'IBM Plex Mono';
+  color:#b87d68;
+}
+.projectStreamTabs em{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font:500 10px 'IBM Plex Mono';
+  font-style:normal;
+  letter-spacing:.02em;
+}
+.projectStreamTabs button.active em{
+  color:#f5ece6;
+}
+.renderViewport:not(.compact)::after{
+  content:'RESUME / PROJECTS / LIVE';
+  position:absolute;
+  left:24px;
+  top:54px;
+  z-index:2;
+  font:8px 'IBM Plex Mono';
+  letter-spacing:.14em;
+  color:rgba(239,228,218,.48);
+  pointer-events:none;
+}
+
+@media(max-width:1000px){
+  .projectStreamTabs{
+    width:min(320px,36%);
+  }
+  .projectStreamCard{
+    width:52%;
+  }
+  .projectStreamCard p{
+    font-size:13px;
+  }
+}
+@media(max-width:880px){
+  .renderViewport:not(.compact){
+    aspect-ratio:auto;
+    min-height:620px;
+  }
+  .projectStreamTabs{
+    top:auto;
+    right:14px;
+    left:14px;
+    bottom:45px;
+    width:auto;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    border-left:1px solid rgba(242,238,231,.12);
+  }
+  .projectStreamTabs button{
+    min-width:0;
+    border-right:1px solid rgba(242,238,231,.12);
+  }
+  .projectStreamCard{
+    left:18px;
+    bottom:250px;
+    width:min(620px,82%);
+  }
+  .renderViewport:not(.compact)::after{
+    left:18px;
+  }
+}
+@media(max-width:600px){
+  .renderViewport:not(.compact){
+    min-height:650px;
+  }
+  .projectStreamCard{
+    left:14px;
+    right:14px;
+    bottom:300px;
+    width:auto;
+  }
+  .projectStreamCard h3{
+    font-size:28px;
+  }
+  .projectStreamCard p{
+    font-size:13px;
+  }
+  .projectStreamTabs{
+    grid-template-columns:1fr;
+    bottom:42px;
+    max-height:235px;
+    overflow:auto;
+  }
+  .projectStreamTabs button{
+    padding:8px 7px;
+  }
+  .projectStreamTabs em{
+    font-size:9px;
+  }
+  .renderViewport:not(.compact)::after{
+    display:none;
+  }
+}
