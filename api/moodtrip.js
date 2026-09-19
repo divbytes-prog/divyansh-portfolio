@@ -1,4 +1,4 @@
-const USER_AGENT='MoodTrip/2.0 (portfolio project; contact: 24DCS032@lnmiit.ac.in)';
+const USER_AGENT='MoodTrip/3.0 (portfolio project; contact: 24DCS032@lnmiit.ac.in)';
 
 const CATEGORY_TAGS={
   cafe:'["amenity"="cafe"]',
@@ -16,6 +16,24 @@ const CATEGORY_TAGS={
   attraction:'["tourism"="attraction"]',
   historic:'["historic"]',
   playground:'["leisure"="playground"]'
+};
+
+const CATEGORY_QUERY={
+  cafe:'cafe',
+  restaurant:'restaurant',
+  cinema:'cinema',
+  library:'library',
+  park:'park',
+  garden:'garden',
+  viewpoint:'viewpoint',
+  museum:'museum',
+  gallery:'art gallery',
+  arcade:'arcade',
+  sports:'sports centre',
+  mall:'shopping mall',
+  attraction:'tourist attraction',
+  historic:'historic place',
+  playground:'playground'
 };
 
 const MOOD_CATEGORIES={
@@ -57,6 +75,123 @@ function send(res,status,payload,ttl=90){
   return res.end(JSON.stringify(payload));
 }
 
+function tagsForCategory(category,name){
+  const tags={name};
+  if(['cafe','restaurant','cinema','library'].includes(category))tags.amenity=category;
+  else if(['park','garden','sports','arcade','playground'].includes(category)){
+    const map={sports:'sports_centre',arcade:'amusement_arcade'};
+    tags.leisure=map[category]||category;
+  }else if(['viewpoint','museum','gallery','attraction'].includes(category))tags.tourism=category;
+  else if(category==='mall')tags.shop='mall';
+  else if(category==='historic')tags.historic='yes';
+  return tags;
+}
+
+function haversineKm(a,b){
+  const R=6371;
+  const dLat=(b.lat-a.lat)*Math.PI/180;
+  const dLon=(b.lng-a.lng)*Math.PI/180;
+  const x=Math.sin(dLat/2)**2+Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLon/2)**2;
+  return 2*R*Math.asin(Math.sqrt(x));
+}
+
+function dedupeAndSort(elements,center,limit=120){
+  const seen=new Set();
+  return elements.filter(el=>{
+    const lat=Number(el.lat??el.center?.lat),lon=Number(el.lon??el.center?.lon);
+    const name=el.tags?.name||el.tags?.['name:en'];
+    if(!name||!Number.isFinite(lat)||!Number.isFinite(lon))return false;
+    const key=(name+'|'+lat.toFixed(4)+'|'+lon.toFixed(4)).toLowerCase();
+    if(seen.has(key))return false;
+    seen.add(key);
+    return true;
+  }).sort((a,b)=>{
+    const aa={lat:Number(a.lat??a.center?.lat),lng:Number(a.lon??a.center?.lon)};
+    const bb={lat:Number(b.lat??b.center?.lat),lng:Number(b.lon??b.center?.lon)};
+    return haversineKm(center,aa)-haversineKm(center,bb);
+  }).slice(0,limit);
+}
+
+async function searchOverpass(lat,lng,radiusKm,categories,headers){
+  const radius=Math.round(radiusKm*1000);
+  const blocks=categories.map(category=>'nwr(around:'+radius+','+lat+','+lng+')'+CATEGORY_TAGS[category]+';').join('');
+  const query='[out:json][timeout:6][maxsize:25165824];('+blocks+');out center 120;';
+  const body=new URLSearchParams({data:query}).toString();
+
+  const providers=[
+    'https://overpass-api.de/api/interpreter',
+    'https://overpass.kumi.systems/api/interpreter',
+    'https://overpass.private.coffee/api/interpreter'
+  ];
+
+  const jobs=providers.map(provider=>fetchJson(provider,{
+    method:'POST',
+    headers:{...headers,'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},
+    body
+  },6500).then(data=>{
+    if(!Array.isArray(data?.elements)||!data.elements.length)throw new Error('Empty Overpass result');
+    return {elements:data.elements,provider:new URL(provider).hostname};
+  }));
+
+  return Promise.any(jobs);
+}
+
+async function searchPhoton(lat,lng,radiusKm,categories,headers){
+  const chosen=categories.slice(0,4);
+  const jobs=chosen.map(async(category)=>{
+    const q=CATEGORY_QUERY[category]||category;
+    const url='https://photon.komoot.io/api/?limit=12&lang=en&lat='+encodeURIComponent(lat)+'&lon='+encodeURIComponent(lng)+'&q='+encodeURIComponent(q);
+    const data=await fetchJson(url,{headers},4500);
+    return (data.features||[]).map((f,i)=>{
+      const coords=f.geometry?.coordinates||[];
+      const p=f.properties||{};
+      const plon=Number(coords[0]),plat=Number(coords[1]);
+      if(!Number.isFinite(plat)||!Number.isFinite(plon))return null;
+      if(haversineKm({lat,lng},{lat:plat,lng:plon})>Math.max(radiusKm,3)*1.35)return null;
+      const name=p.name||p.street||p.city;
+      if(!name)return null;
+      const tags=tagsForCategory(category,name);
+      if(p.street)tags['addr:street']=p.street;
+      if(p.city)tags['addr:city']=p.city;
+      return {type:'node',id:'photon-'+category+'-'+(p.osm_id||i),lat:plat,lon:plon,tags};
+    }).filter(Boolean);
+  });
+  const groups=await Promise.allSettled(jobs);
+  const elements=groups.flatMap(g=>g.status==='fulfilled'?g.value:[]);
+  if(!elements.length)throw new Error('Photon empty');
+  return {elements,provider:'photon.komoot.io'};
+}
+
+function viewbox(lat,lng,radiusKm){
+  const latDelta=radiusKm/111;
+  const lngDelta=radiusKm/(111*Math.max(.2,Math.cos(lat*Math.PI/180)));
+  return [lng-lngDelta,lat+latDelta,lng+lngDelta,lat-latDelta].join(',');
+}
+
+async function searchNominatim(lat,lng,radiusKm,categories,headers){
+  const box=viewbox(lat,lng,Math.min(radiusKm,8));
+  const chosen=categories.slice(0,3);
+  const elements=[];
+  for(const category of chosen){
+    try{
+      const q=CATEGORY_QUERY[category]||category;
+      const url='https://nominatim.openstreetmap.org/search?format=jsonv2&limit=8&bounded=1&viewbox='+encodeURIComponent(box)+'&q='+encodeURIComponent(q);
+      const data=await fetchJson(url,{headers},3800);
+      (data||[]).forEach((p,i)=>{
+        const plat=Number(p.lat),plon=Number(p.lon);
+        if(!Number.isFinite(plat)||!Number.isFinite(plon))return;
+        const name=String(p.display_name||'').split(',')[0]||q;
+        const tags=tagsForCategory(category,name);
+        const parts=String(p.display_name||'').split(',').map(x=>x.trim()).filter(Boolean);
+        if(parts[1])tags['addr:street']=parts[1];
+        elements.push({type:'node',id:'nom-'+category+'-'+(p.osm_id||i),lat:plat,lon:plon,tags});
+      });
+    }catch{}
+  }
+  if(!elements.length)throw new Error('Nominatim empty');
+  return {elements,provider:'nominatim.openstreetmap.org'};
+}
+
 export default async function handler(req,res){
   if(req.method!=='GET')return send(res,405,{error:'Method not allowed'},0);
 
@@ -86,13 +221,22 @@ export default async function handler(req,res){
     if(action==='geocode'){
       const q=String(req.query.q||'').trim().slice(0,160);
       if(!q)return send(res,400,{error:'Location is required'},0);
-      const url='https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q='+encodeURIComponent(q);
-      const data=await fetchJson(url,{headers},5000);
-      if(!data?.[0])return send(res,404,{error:'Location not found'},0);
+      try{
+        const url='https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q='+encodeURIComponent(q);
+        const data=await fetchJson(url,{headers},4800);
+        if(data?.[0])return send(res,200,{
+          lat:Number(data[0].lat),
+          lng:Number(data[0].lon),
+          label:String(data[0].display_name||q).split(',').slice(0,2).join(', ')
+        },300);
+      }catch{}
+      const photon=await fetchJson('https://photon.komoot.io/api/?limit=1&lang=en&q='+encodeURIComponent(q),{headers},4500);
+      const f=photon.features?.[0];
+      if(!f)return send(res,404,{error:'Location not found'},0);
       return send(res,200,{
-        lat:Number(data[0].lat),
-        lng:Number(data[0].lon),
-        label:String(data[0].display_name||q).split(',').slice(0,2).join(', ')
+        lat:Number(f.geometry.coordinates[1]),
+        lng:Number(f.geometry.coordinates[0]),
+        label:[f.properties?.name,f.properties?.city].filter(Boolean).join(', ')||q
       },300);
     }
 
@@ -103,41 +247,50 @@ export default async function handler(req,res){
       const mood=String(req.query.mood||'happy').toLowerCase();
       if(lat===null||lng===null||radiusKm===null)return send(res,400,{error:'Invalid place-search parameters'},0);
 
-      // Fast-first search. Most useful places should be near the user, so the first pass
-      // intentionally caps the expensive Overpass radius. The UI can still sort all returned
-      // results by exact haversine distance.
       const effectiveRadiusKm=Math.min(radiusKm,8);
-      const radius=Math.round(effectiveRadiusKm*1000);
       const categories=(MOOD_CATEGORIES[mood]||MOOD_CATEGORIES.happy).slice(0,5);
-      const blocks=categories
-        .map(category=>'nwr(around:'+radius+','+lat+','+lng+')'+CATEGORY_TAGS[category]+';')
-        .join('');
-      const query='[out:json][timeout:7][maxsize:33554432];('+blocks+');out center 100;';
-      const body=new URLSearchParams({data:query}).toString();
-      const providers=[
-        'https://overpass-api.de/api/interpreter',
-        'https://overpass.kumi.systems/api/interpreter'
-      ];
+      const center={lat,lng};
 
-      const jobs=providers.map(provider=>fetchJson(provider,{
-        method:'POST',
-        headers:{...headers,'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},
-        body
-      },7500).then(data=>{
-        if(!Array.isArray(data?.elements))throw new Error('Invalid Overpass payload');
-        return {data,provider:new URL(provider).hostname};
-      }));
-
-      let winner;
+      let result=null;
       try{
-        winner=await Promise.any(jobs);
-      }catch{
-        return send(res,502,{error:'Nearby place providers are busy. Please retry in a few seconds.'},0);
+        result=await searchOverpass(lat,lng,effectiveRadiusKm,categories,headers);
+      }catch(overpassError){
+        console.warn('MoodTrip Overpass unavailable:',overpassError?.message);
       }
 
+      if(!result){
+        try{
+          result=await searchPhoton(lat,lng,effectiveRadiusKm,categories,headers);
+        }catch(photonError){
+          console.warn('MoodTrip Photon unavailable:',photonError?.message);
+        }
+      }
+
+      if(!result){
+        try{
+          result=await searchNominatim(lat,lng,effectiveRadiusKm,categories,headers);
+        }catch(nominatimError){
+          console.warn('MoodTrip Nominatim unavailable:',nominatimError?.message);
+        }
+      }
+
+      if(!result){
+        return send(res,503,{error:'Live place sources are temporarily unavailable. Please retry shortly.'},0);
+      }
+
+      const elements=dedupeAndSort(result.elements,center,120);
+      if(!elements.length)return send(res,200,{
+        elements:[],
+        provider:result.provider,
+        effectiveRadiusKm,
+        requestedRadiusKm:radiusKm,
+        mood,
+        categories
+      },90);
+
       return send(res,200,{
-        elements:winner.data.elements,
-        provider:winner.provider,
+        elements,
+        provider:result.provider,
         effectiveRadiusKm,
         requestedRadiusKm:radiusKm,
         mood,
