@@ -192,6 +192,158 @@ async function searchNominatim(lat,lng,radiusKm,categories,headers){
   return {elements,provider:'nominatim.openstreetmap.org'};
 }
 
+
+function cleanLabel(display){
+  return String(display||'').split(',').map(x=>x.trim()).filter(Boolean);
+}
+
+function suggestionKey(item){
+  return (item.label+'|'+Number(item.lat).toFixed(5)+'|'+Number(item.lng).toFixed(5)).toLowerCase();
+}
+
+function suggestionDistanceBias(item,bias){
+  if(!bias)return 0;
+  const d=haversineKm(bias,{lat:item.lat,lng:item.lng});
+  return Math.max(0,30-d);
+}
+
+async function searchAddressSuggestions(q,lat,lng,headers){
+  const bias=Number.isFinite(lat)&&Number.isFinite(lng)?{lat,lng}:null;
+  const nomQueries=[
+    q,
+    q+', India'
+  ];
+
+  const nomJobs=nomQueries.map(query=>{
+    const url='https://nominatim.openstreetmap.org/search?format=jsonv2&limit=12&addressdetails=1&namedetails=1&extratags=1&countrycodes=in&q='+encodeURIComponent(query);
+    return fetchJson(url,{headers},4800).catch(()=>[]);
+  });
+
+  const photonUrl='https://photon.komoot.io/api/?limit=12&lang=en&q='+encodeURIComponent(q)
+    +(bias?'&lat='+encodeURIComponent(lat)+'&lon='+encodeURIComponent(lng):'');
+  const photonJob=fetchJson(photonUrl,{headers},4500).catch(()=>({features:[]}));
+
+  const [nomA,nomB,photon]=await Promise.all([nomJobs[0],nomJobs[1],photonJob]);
+  const items=[];
+
+  [...(nomA||[]),...(nomB||[])].forEach(p=>{
+    const latN=Number(p.lat),lngN=Number(p.lon);
+    if(!Number.isFinite(latN)||!Number.isFinite(lngN))return;
+    const parts=cleanLabel(p.display_name);
+    items.push({
+      id:'nom-'+(p.osm_type||'x')+'-'+(p.osm_id||Math.random()),
+      label:parts[0]||q,
+      secondary:parts.slice(1,5).join(', '),
+      fullLabel:parts.slice(0,7).join(', '),
+      lat:latN,lng:lngN,
+      type:p.addresstype||p.type||p.category||'place',
+      osmType:p.osm_type||null,
+      osmId:p.osm_id||null,
+      bbox:Array.isArray(p.boundingbox)?p.boundingbox.map(Number):null,
+      source:'Nominatim',
+      importance:Number(p.importance)||0
+    });
+  });
+
+  (photon?.features||[]).forEach((f,i)=>{
+    const c=f.geometry?.coordinates||[];
+    const p=f.properties||{};
+    const lngN=Number(c[0]),latN=Number(c[1]);
+    if(!Number.isFinite(latN)||!Number.isFinite(lngN))return;
+    const full=[p.name,p.street,p.district,p.city,p.state,p.country].filter(Boolean);
+    items.push({
+      id:'pho-'+(p.osm_type||'x')+'-'+(p.osm_id||i),
+      label:p.name||p.street||p.city||q,
+      secondary:[p.street,p.district,p.city,p.state].filter(Boolean).join(', '),
+      fullLabel:full.join(', '),
+      lat:latN,lng:lngN,
+      type:p.type||p.osm_value||p.osm_key||'place',
+      osmType:p.osm_type||null,
+      osmId:p.osm_id||null,
+      bbox:null,
+      source:'Photon',
+      importance:.15
+    });
+  });
+
+  const deduped=new Map();
+  items.forEach(item=>{
+    const key=suggestionKey(item);
+    const score=(item.importance||0)*100+suggestionDistanceBias(item,bias)
+      +(String(item.fullLabel||'').toLowerCase().includes(q.toLowerCase())?18:0);
+    const prev=deduped.get(key);
+    if(!prev||score>prev._score)deduped.set(key,{...item,_score:score});
+  });
+
+  return [...deduped.values()]
+    .sort((a,b)=>b._score-a._score)
+    .slice(0,12)
+    .map(({_score,...item})=>item);
+}
+
+async function googleReviews(name,lat,lng){
+  const key=process.env.GOOGLE_MAPS_API_KEY||process.env.GOOGLE_PLACES_API_KEY;
+  const mapsUrl='https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(name+(Number.isFinite(lat)&&Number.isFinite(lng)?(' '+lat+','+lng):''));
+  if(!key)return {configured:false,mapsUrl};
+
+  const searchBody={
+    textQuery:name,
+    languageCode:'en'
+  };
+  if(Number.isFinite(lat)&&Number.isFinite(lng)){
+    searchBody.locationBias={circle:{center:{latitude:lat,longitude:lng},radius:1800}};
+  }
+
+  const search=await fetchJson('https://places.googleapis.com/v1/places:searchText',{
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'X-Goog-Api-Key':key,
+      'X-Goog-FieldMask':'places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.googleMapsUri'
+    },
+    body:JSON.stringify(searchBody)
+  },6500);
+
+  const candidates=search?.places||[];
+  if(!candidates.length)return {configured:true,found:false,mapsUrl};
+
+  let place=candidates[0];
+  if(Number.isFinite(lat)&&Number.isFinite(lng)){
+    place=[...candidates].sort((a,b)=>{
+      const da=a.location?haversineKm({lat,lng},{lat:a.location.latitude,lng:a.location.longitude}):999;
+      const db=b.location?haversineKm({lat,lng},{lat:b.location.latitude,lng:b.location.longitude}):999;
+      return da-db;
+    })[0];
+  }
+
+  const detail=await fetchJson('https://places.googleapis.com/v1/places/'+encodeURIComponent(place.id),{
+    headers:{
+      'X-Goog-Api-Key':key,
+      'X-Goog-FieldMask':'id,displayName,formattedAddress,rating,userRatingCount,reviews,googleMapsUri,primaryTypeDisplayName'
+    }
+  },6500);
+
+  return {
+    configured:true,
+    found:true,
+    placeId:detail.id,
+    name:detail.displayName?.text||name,
+    address:detail.formattedAddress||'',
+    rating:detail.rating||null,
+    ratingCount:detail.userRatingCount||0,
+    type:detail.primaryTypeDisplayName?.text||'',
+    mapsUrl:detail.googleMapsUri||mapsUrl,
+    reviews:(detail.reviews||[]).slice(0,5).map(r=>({
+      author:r.authorAttribution?.displayName||'Google user',
+      authorUri:r.authorAttribution?.uri||null,
+      photoUri:r.authorAttribution?.photoUri||null,
+      rating:r.rating||null,
+      relativeTime:r.relativePublishTimeDescription||'',
+      text:r.text?.text||r.originalText?.text||''
+    }))
+  };
+}
+
 export default async function handler(req,res){
   if(req.method!=='GET')return send(res,405,{error:'Method not allowed'},0);
 
@@ -203,6 +355,30 @@ export default async function handler(req,res){
   };
 
   try{
+    if(action==='suggest'){
+      const q=String(req.query.q||'').trim().slice(0,180);
+      const lat=num(req.query.lat,-90,90);
+      const lng=num(req.query.lng,-180,180);
+      if(q.length<2)return send(res,200,{items:[]},15);
+      const items=await searchAddressSuggestions(q,lat,lng,headers);
+      return send(res,200,{items},60);
+    }
+
+    if(action==='reviews'){
+      const name=String(req.query.name||'').trim().slice(0,180);
+      const lat=num(req.query.lat,-90,90);
+      const lng=num(req.query.lng,-180,180);
+      if(!name)return send(res,400,{error:'Place name is required'},0);
+      try{
+        const data=await googleReviews(name,lat,lng);
+        return send(res,200,data,data.configured?120:30);
+      }catch(e){
+        console.error('Google review lookup failed',e);
+        const mapsUrl='https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(name);
+        return send(res,200,{configured:true,found:false,mapsUrl,error:'Google review lookup is temporarily unavailable.'},30);
+      }
+    }
+
     if(action==='reverse'){
       const lat=num(req.query.lat,-90,90);
       const lng=num(req.query.lng,-180,180);
