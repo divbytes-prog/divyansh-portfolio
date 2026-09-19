@@ -177,6 +177,127 @@ function FieldNotebook(){
   </motion.div>;
 }
 
+function RealtimeViewport({compact=false}){
+  const canvasRef=useRef(null);
+  const wrapRef=useRef(null);
+  const reduce=useReducedMotion();
+
+  useEffect(()=>{
+    const canvas=canvasRef.current;
+    const wrap=wrapRef.current;
+    if(!canvas||!wrap)return;
+    const ctx=canvas.getContext('2d');
+    let raf=0,visible=true,w=1,h=1,dpr=1,last=0;
+    const pointer={x:.68,y:.42,active:false};
+    const seeds=Array.from({length:compact?18:34},(_,i)=>({
+      a:(i*2.399963)%6.28,
+      r:.14+((i*37)%100)/260,
+      s:.35+((i*17)%80)/100
+    }));
+
+    const resize=()=>{
+      const rect=wrap.getBoundingClientRect();
+      w=Math.max(1,rect.width);h=Math.max(1,rect.height);
+      dpr=Math.min(window.devicePixelRatio||1,2);
+      canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);
+      canvas.style.width=w+'px';canvas.style.height=h+'px';
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+    };
+
+    const draw=t=>{
+      const time=(t||0)*.001;
+      ctx.clearRect(0,0,w,h);
+      ctx.fillStyle=compact?'#f5eee7':'#211b18';
+      ctx.fillRect(0,0,w,h);
+
+      ctx.strokeStyle=compact?'rgba(102,83,72,.12)':'rgba(242,238,231,.10)';
+      ctx.lineWidth=1;
+      const gap=compact?36:54;
+      for(let x=gap;x<w;x+=gap){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke()}
+      for(let y=gap;y<h;y+=gap){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke()}
+
+      const cx=w*(pointer.active?pointer.x:.64);
+      const cy=h*(pointer.active?pointer.y:.48);
+
+      ctx.beginPath();
+      for(let x=0;x<=w;x+=8){
+        const y=h*.54+Math.sin(x*.014+time*1.15)*h*.105+Math.sin(x*.032-time*.62)*h*.035;
+        x===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+      }
+      ctx.strokeStyle=compact?'rgba(154,102,84,.72)':'rgba(202,154,132,.72)';
+      ctx.lineWidth=compact?1.4:2;
+      ctx.stroke();
+
+      seeds.forEach((p,i)=>{
+        const ang=p.a+time*(compact?.18:.12)*p.s;
+        const drift=Math.sin(time*.8+i)*.025;
+        let x=w*(.5+Math.cos(ang)*(p.r+drift));
+        let y=h*(.5+Math.sin(ang*1.13)*(p.r*.72));
+        const dx=x-cx,dy=y-cy,dist=Math.hypot(dx,dy);
+        if(pointer.active&&dist<140){
+          const push=(140-dist)/140;
+          x+=dx/(dist||1)*push*18;
+          y+=dy/(dist||1)*push*18;
+        }
+        const radius=compact?2.1:2.6+(i%3)*.45;
+        ctx.beginPath();ctx.arc(x,y,radius,0,Math.PI*2);
+        ctx.fillStyle=i%5===0?'#8d927d':(compact?'#9a6654':'#c28d76');
+        ctx.fill();
+
+        if(i%4===0){
+          ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(cx,cy);
+          ctx.strokeStyle=compact?'rgba(154,102,84,.08)':'rgba(194,141,118,.08)';
+          ctx.lineWidth=1;ctx.stroke();
+        }
+      });
+
+      ctx.beginPath();ctx.arc(cx,cy,compact?5:7,0,Math.PI*2);
+      ctx.fillStyle=compact?'#9a6654':'#efe4da';ctx.fill();
+      ctx.beginPath();ctx.arc(cx,cy,compact?18:26,0,Math.PI*2);
+      ctx.strokeStyle=compact?'rgba(154,102,84,.28)':'rgba(239,228,218,.24)';
+      ctx.stroke();
+
+      if(!reduce&&visible)raf=requestAnimationFrame(draw);
+    };
+
+    const enter=e=>{
+      const r=wrap.getBoundingClientRect();
+      pointer.x=(e.clientX-r.left)/r.width;
+      pointer.y=(e.clientY-r.top)/r.height;
+      pointer.active=true;
+    };
+    const leave=()=>{pointer.active=false};
+
+    const ro=new ResizeObserver(resize);
+    ro.observe(wrap);
+    const io=new IntersectionObserver(([entry])=>{
+      const was=visible;visible=entry.isIntersecting;
+      if(visible&&!was&&!reduce){cancelAnimationFrame(raf);raf=requestAnimationFrame(draw)}
+    },{threshold:.05});
+    io.observe(wrap);
+    wrap.addEventListener('pointermove',enter,{passive:true});
+    wrap.addEventListener('pointerleave',leave);
+
+    resize();
+    if(reduce)draw(0);else raf=requestAnimationFrame(draw);
+
+    return()=>{
+      cancelAnimationFrame(raf);ro.disconnect();io.disconnect();
+      wrap.removeEventListener('pointermove',enter);
+      wrap.removeEventListener('pointerleave',leave);
+    };
+  },[compact,reduce]);
+
+  return <div ref={wrapRef} className={compact?'renderViewport compact':'renderViewport'} role="img" aria-label="Live generative visualization reacting to pointer movement">
+    <canvas ref={canvasRef} aria-hidden="true"/>
+    {!compact&&<>
+      <div className="renderHud top"><span><i/>LIVE RENDER</span><b>POINTER / REACTIVE</b></div>
+      <div className="renderHud bottom"><span>FRAME STREAM</span><b>DS-RT / 01</b><span>CANVAS</span><b>ACTIVE</b></div>
+      <div className="renderCaption">A small system running in real time, not a prerecorded video.</div>
+    </>}
+  </div>;
+}
+
 function LiveSignal(){
   const reduce=useReducedMotion();
   return <motion.div
@@ -190,16 +311,7 @@ function LiveSignal(){
       <span><i/>LIVE BUILD SIGNAL</span>
       <small>DS/26</small>
     </div>
-    <div className="radar">
-      <motion.div className="orbit one" animate={reduce?undefined:{rotate:360}} transition={{duration:14,repeat:Infinity,ease:'linear'}}>
-        <span/>
-      </motion.div>
-      <motion.div className="orbit two" animate={reduce?undefined:{rotate:-360}} transition={{duration:9,repeat:Infinity,ease:'linear'}}>
-        <span/>
-      </motion.div>
-      <motion.div className="pulseDot" animate={reduce?undefined:{scale:[1,1.8,1],opacity:[.9,.35,.9]}} transition={{duration:2.2,repeat:Infinity}}/>
-      <div className="cross x"/><div className="cross y"/>
-    </div>
+    <RealtimeViewport compact/>
     <div className="signalBars">
       {[36,72,48,88,58,94,64,82,52,76].map((h,i)=>
         <motion.i
@@ -377,6 +489,13 @@ function App(){
           <Reveal><div><p className="eyebrow">03 / SELECTED WORK</p><h2>Things I’ve <em>actually built.</em></h2></div></Reveal>
           <Reveal delay={.1}><MagneticLink className="textLink" href="https://github.com/divbytes-prog" external>All repositories ↗</MagneticLink></Reveal>
         </div>
+        <Reveal className="renderFeature">
+          <div className="renderFeatureCopy">
+            <span>LIVE / 03A</span>
+            <p>Move your pointer through the frame.</p>
+          </div>
+          <RealtimeViewport/>
+        </Reveal>
         <div className="projectGrid">{projects.map((project,i)=><TiltCard key={project.n} project={project} index={i}/>)}</div>
       </section>
 
