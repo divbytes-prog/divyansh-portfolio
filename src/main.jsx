@@ -15,11 +15,48 @@ import portraitData from'./portraitData';
 import'./styles.css';
 
 const projects=[
-  {n:'01',title:'Startup Funding Analytics',tags:'PYTHON · ANALYTICS · DATA',desc:'An interactive analytics project for exploring startup funding patterns, sectors and activity.',href:'https://github.com/divbytes-prog/startupfunding01'},
-  {n:'02',title:'File Explorer',tags:'PRODUCT · SYSTEMS · UI',desc:'A practical file-exploration project focused on clear navigation, usable structure and desktop-style interaction.',href:'https://github.com/divbytes-prog/File-Explorer'},
-  {n:'03',title:'Lawn Tennis',tags:'WEB · INTERACTION · PRODUCT',desc:'A web project built around tennis content and interaction, shaped through hands-on product iteration.',href:'https://github.com/divbytes-prog/launtennis'},
-  {n:'04',title:'Hearthlog',tags:'WEB · PERSONAL PROJECT',desc:'A compact product experiment built to learn by shipping and refining a real interface.',href:'https://github.com/divbytes-prog/hearthlog'},
-  {n:'05',title:'IIT Hackathon',tags:'HACKATHON · BUILD · TEAM',desc:'A fast-moving hackathon build where clarity, execution and working software mattered more than polish.',href:'https://github.com/divbytes-prog/iit_hackathon'}
+  {
+    n:'01',
+    title:'Startup Funding Analyser',
+    tags:'PYTHON · STREAMLIT · PANDAS · MATPLOTLIB',
+    desc:'Interactive startup-funding analytics with overall funding metrics, month-over-month trends and investor-level analysis.',
+    href:'https://github.com/divbytes-prog/startup-funding-analyser'
+  },
+  {
+    n:'02',
+    title:'India Data Visualization Dashboard',
+    tags:'PYTHON · STREAMLIT · PLOTLY · DATA VIZ',
+    desc:'District-level India dashboard with geospatial maps, state filters, KPI cards, comparisons and downloadable data.',
+    href:'https://github.com/divbytes-prog/dashboard'
+  },
+  {
+    n:'03',
+    title:'File Explorer',
+    tags:'PYTHON · FLASK · HTML · CSS · JAVASCRIPT',
+    desc:'Web-based file and media explorer for browsing folders, playing videos, viewing PDFs, searching files and sharing through DropX.',
+    href:'https://github.com/divbytes-prog/File-Explorer'
+  },
+  {
+    n:'04',
+    title:'Career Assistant',
+    tags:'REACT · TYPESCRIPT · TAILWIND · AI',
+    desc:'Career-guidance platform with role exploration, salary and growth insights, learning roadmaps, search and an interactive chatbot.',
+    href:'https://github.com/divbytes-prog/launtennis'
+  },
+  {
+    n:'05',
+    title:'QuickDine',
+    tags:'REACT · TYPESCRIPT · EXPRESS · MONGODB',
+    desc:'Full-stack restaurant discovery and table-booking platform with user, restaurant-owner and admin experiences.',
+    href:'https://github.com/divbytes-prog/QuickDine'
+  },
+  {
+    n:'06',
+    title:'Hearthlog',
+    tags:'REACT · EXPRESS · MONGODB · PRODUCT',
+    desc:'A cozy life-RPG that turns everyday intentions into XP, attributes, streaks and rewards through a game-like progression loop.',
+    href:'https://github.com/divbytes-prog/hearthlog'
+  }
 ];
 
 const resumeProjects=[
