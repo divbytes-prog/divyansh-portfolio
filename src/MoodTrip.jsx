@@ -544,6 +544,12 @@ function App(){
   const [accuracy,setAccuracy]=useState(null);
   const [locationState,setLocationState]=useState('idle');
   const [manualCity,setManualCity]=useState('');
+  const [locationSuggestions,setLocationSuggestions]=useState([]);
+  const [suggestState,setSuggestState]=useState('idle');
+  const [suggestOpen,setSuggestOpen]=useState(false);
+  const [reviewPlace,setReviewPlace]=useState(null);
+  const [reviewData,setReviewData]=useState(null);
+  const [reviewState,setReviewState]=useState('idle');
   const [places,setPlaces]=useState([]);
   const [selectedId,setSelectedId]=useState(null);
   const [searchState,setSearchState]=useState('idle');
@@ -568,6 +574,31 @@ function App(){
   useEffect(()=>{
     setGroupMoods(prev=>Array.from({length:groupCount},(_,i)=>prev[i]||soloMood));
   },[groupCount,soloMood]);
+
+
+  useEffect(()=>{
+    if(!suggestOpen||manualCity.trim().length<2){
+      setLocationSuggestions([]);
+      if(manualCity.trim().length<2)setSuggestState('idle');
+      return;
+    }
+    let alive=true;
+    const timer=setTimeout(async()=>{
+      setSuggestState('loading');
+      try{
+        const bias=coords?'&lat='+encodeURIComponent(coords.lat)+'&lng='+encodeURIComponent(coords.lng):'';
+        const d=await apiJson('/api/moodtrip?action=suggest&q='+encodeURIComponent(manualCity.trim())+bias,{},6500);
+        if(!alive)return;
+        setLocationSuggestions(d.items||[]);
+        setSuggestState('ready');
+      }catch{
+        if(!alive)return;
+        setLocationSuggestions([]);
+        setSuggestState('error');
+      }
+    },260);
+    return()=>{alive=false;clearTimeout(timer)};
+  },[manualCity,suggestOpen,coords?.lat,coords?.lng]);
 
   const groupVector=useMemo(()=>avgVectors(groupMoods.map(m=>MOOD_VECTORS[m]||MOOD_VECTORS.happy)),[groupMoods]);
   const groupCounts=useMemo(()=>groupMoods.reduce((a,m)=>(a[m]=(a[m]||0)+1,a),{}),[groupMoods]);
@@ -597,14 +628,56 @@ function App(){
     },{enableHighAccuracy:true,timeout:14000,maximumAge:60000});
   }
 
+  function chooseSuggestion(item){
+    setCoords({lat:Number(item.lat),lng:Number(item.lng)});
+    setLocationLabel(item.fullLabel||[item.label,item.secondary].filter(Boolean).join(', '));
+    setManualCity(item.fullLabel||item.label);
+    setAccuracy(null);
+    setLocationState('ready');
+    setSuggestOpen(false);
+    setLocationSuggestions([]);
+    setError('');
+  }
+
   async function useCity(e){
     e?.preventDefault();
     if(!manualCity.trim())return;
+    if(locationSuggestions.length){
+      chooseSuggestion(locationSuggestions[0]);
+      return;
+    }
     try{
       setError('');setLocationState('loading');
       const found=await geocodeCity(manualCity.trim());
-      setCoords({lat:found.lat,lng:found.lng});setLocationLabel(found.label);setAccuracy(null);setLocationState('ready');
-    }catch(e){setLocationState('error');setError(e.message||'Location not found')}
+      setCoords({lat:found.lat,lng:found.lng});
+      setLocationLabel(found.label);
+      setAccuracy(null);
+      setLocationState('ready');
+      setSuggestOpen(false);
+    }catch(e){
+      setLocationState('error');
+      setError(e.message||'Location not found. Try the full building/society name plus neighbourhood and city.');
+    }
+  }
+
+  async function openReviews(place){
+    if(!place)return;
+    setReviewPlace(place);
+    setReviewData(null);
+    setReviewState('loading');
+    try{
+      const d=await apiJson(
+        '/api/moodtrip?action=reviews&name='+encodeURIComponent(place.name)+
+        '&lat='+encodeURIComponent(place.lat)+'&lng='+encodeURIComponent(place.lng),
+        {},
+        9000
+      );
+      setReviewData(d);
+      setReviewState('ready');
+    }catch(e){
+      setReviewData({configured:false,mapsUrl:googleMapsUrl(place),error:e.message});
+      setReviewState('error');
+    }
   }
 
   function inferFinalMoodFast(){
@@ -731,6 +804,17 @@ function App(){
     </header>
 
     <section className="mtHero">
+      {!reduce&&<motion.div className="mtHeroFx" initial={{opacity:0}} animate={{opacity:1}} transition={{duration:1.1}} aria-hidden="true">
+        <AeroShards
+          backgroundColor="#f2eee7" shardColor="#b69b8c" accentColor="#9a6654"
+          placement="full" flow="stream" material="pearl" detail="balanced"
+          scale={1} spread={1.1} depth={1} speed={.26} spin={.42}
+          interaction="repel" density={.58} shardSize={.72} turbulence={.56}
+          glow={.18} edgeSoftness={2} bloom={.1} grain={.025}
+          interactionRadius={1.15} interactionStrength={.2} rippleIntensity={.22}
+        />
+      </motion.div>}
+      <div className="mtHeroFxVeil" aria-hidden="true"/>
       <div className="mtHeroBlock" aria-hidden="true"/>
       <div className="mtHeroStudio" aria-hidden="true">MOOD<br/>PLACE<br/>GO</div>
       <div className="mtMarginNote" aria-hidden="true">DISTANCE FIRST / REVIEWS SECOND</div>
@@ -771,11 +855,30 @@ function App(){
             <div><h3>{locationState==='ready'?(locationLabel||'Current area'):'Where are you?'}</h3><p>{locationState==='ready'?(accuracy?('Browser GPS · ±'+accuracy+' m'):'Manual city location'):'MoodTrip only requests location when you press the button.'}</p></div>
           </div>
           <button className="mtBlackButton" onClick={useMyLocation}>{locationState==='loading'?'REQUESTING LOCATION…':'USE BROWSER LOCATION ↗'}</button>
-          <form className="mtManualLocation" onSubmit={useCity}>
-            <input value={manualCity} onChange={e=>setManualCity(e.target.value)} placeholder="or type a city"/>
-            <button>USE CITY</button>
-          </form>
-          <p className="mtFinePrint">Exact coordinates stay in your browser session. The UI only displays a city/area label.</p>
+          <div className="mtLocationSearchWrap">
+            <form className="mtManualLocation" onSubmit={useCity}>
+              <input
+                value={manualCity}
+                onFocus={()=>setSuggestOpen(true)}
+                onChange={e=>{setManualCity(e.target.value);setSuggestOpen(true)}}
+                placeholder="Search building, society, street, locality or city"
+                autoComplete="off"
+              />
+              <button>{suggestState==='loading'?'SEARCHING…':'SEARCH'}</button>
+            </form>
+            <AnimatePresence>
+              {suggestOpen&&manualCity.trim().length>=2&&<motion.div className="mtLocationSuggestions" initial={{opacity:0,y:-8}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-8}}>
+                {locationSuggestions.map((item,i)=><button type="button" key={item.id+'-'+i} onClick={()=>chooseSuggestion(item)}>
+                  <span>{String(i+1).padStart(2,'0')}</span>
+                  <div><b>{item.label}</b><small>{item.secondary||item.fullLabel||item.type}</small></div>
+                  <em>{String(item.type||'place').replaceAll('_',' ')}</em>
+                </button>)}
+                {suggestState==='loading'&&<div className="mtSuggestStatus">SEARCHING LOCAL BUILDINGS + ADDRESSES…</div>}
+                {suggestState==='ready'&&!locationSuggestions.length&&<div className="mtSuggestStatus">NO EXACT MATCH YET — TRY THE FULL NAME + NEIGHBOURHOOD + CITY</div>}
+              </motion.div>}
+            </AnimatePresence>
+          </div>
+          <p className="mtFinePrint">Search now checks named buildings, societies, streets, neighbourhoods and POIs—not only major landmarks. Exact coordinates stay in this browser session.</p>
         </PopWindow>
 
         <PopWindow className="mtModeWindow" delay={.05}>
@@ -887,12 +990,16 @@ function App(){
                   <span><b>{p.crowdEstimate}</b> crowd proxy</span>
                 </div>
               </div>
-              <div className="mtPlaceActions"><button onClick={e=>{e.stopPropagation();likePlace(p)}}>GOOD PICK +</button><a onClick={e=>e.stopPropagation()} href={googleMapsUrl(p)} target="_blank" rel="noreferrer">MAPS ↗</a></div>
+              <div className="mtPlaceActions">
+                <button onClick={e=>{e.stopPropagation();likePlace(p)}}>GOOD PICK +</button>
+                <button onClick={e=>{e.stopPropagation();openReviews(p)}}>REVIEWS ↗</button>
+                <a onClick={e=>e.stopPropagation()} href={googleMapsUrl(p)} target="_blank" rel="noreferrer">MAPS ↗</a>
+              </div>
             </motion.article>)}
           </div>
         </div>
 
-        {provider==='OpenStreetMap'&&<div className="mtProviderNotice"><span>REVIEW DATA</span><p>This deployment is currently using OpenStreetMap/Overpass for real nearby places. It does not fabricate ratings. The Google Places adapter is already wired into the project; adding a restricted <code>VITE_GOOGLE_MAPS_API_KEY</code> enables real rating + review-count tie-breaking automatically.</p></div>}
+        {provider==='OpenStreetMap'&&<div className="mtProviderNotice"><span>REVIEW DATA</span><p>This deployment uses live open map sources for nearby discovery and never invents ratings. The Reviews panel always links to Google Maps; adding a server-side <code>GOOGLE_MAPS_API_KEY</code> enables official Google rating counts and review excerpts inside MoodTrip.</p></div>}
       </>:<div className="mtEmptyResults"><span>03</span><h3>Share a location, choose the mood, then run the pipeline.</h3><p>The page will query live nearby places rather than showing a fixed Jaipur demo list.</p></div>}
     </section>
 
@@ -918,6 +1025,42 @@ function App(){
       <p>MOOD → LOCATION → VIBE → RANK → GO</p>
       <a href="/">DIVYANSH SINGH / PORTFOLIO ↗</a>
     </footer>
+
+    <AnimatePresence>
+      {reviewPlace&&<>
+        <motion.button className="mtHistoryScrim" aria-label="Close reviews" onClick={()=>setReviewPlace(null)} initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}/>
+        <motion.aside className="mtReviewSheet" initial={{x:'100%'}} animate={{x:0}} exit={{x:'100%'}} transition={{type:'spring',stiffness:190,damping:26}}>
+          <div className="mtReviewHead">
+            <div><span>GOOGLE REVIEWS</span><h3>{reviewPlace.name}</h3><p>{reviewPlace.address||locationLabel||'Nearby'}</p></div>
+            <button onClick={()=>setReviewPlace(null)}>×</button>
+          </div>
+
+          {reviewState==='loading'&&<div className="mtReviewLoading"><i/><b>CHECKING GOOGLE PLACE DETAILS…</b></div>}
+
+          {reviewState!=='loading'&&reviewData?.configured&&reviewData?.found&&<>
+            <div className="mtRatingHero">
+              <strong>{Number(reviewData.rating||0).toFixed(1)}</strong>
+              <div><span>{'★'.repeat(Math.max(0,Math.round(reviewData.rating||0)))}</span><b>{Intl.NumberFormat().format(reviewData.ratingCount||0)} Google ratings</b></div>
+            </div>
+            <div className="mtReviewList">
+              {(reviewData.reviews||[]).map((r,i)=><article key={i}>
+                <div><b>{r.author}</b><span>{r.rating?Number(r.rating).toFixed(1)+' ★':''}</span></div>
+                <small>{r.relativeTime}</small>
+                <p>{r.text||'No written comment.'}</p>
+              </article>)}
+            </div>
+          </>}
+
+          {reviewState!=='loading'&&(!reviewData?.configured||!reviewData?.found)&&<div className="mtReviewUnavailable">
+            <span>LIVE GOOGLE DATA</span>
+            <h4>{reviewData?.configured?'No matching Google Place was returned.':'Google Places key not connected yet.'}</h4>
+            <p>MoodTrip will not scrape or invent Google ratings. The button below opens the real Google Maps listing so users can read the current rating and reviews directly.</p>
+          </div>}
+
+          <a className="mtGoogleReviewButton" href={reviewData?.mapsUrl||googleMapsUrl(reviewPlace)} target="_blank" rel="noreferrer">OPEN ALL GOOGLE REVIEWS ↗</a>
+        </motion.aside>
+      </>}
+    </AnimatePresence>
 
     <AnimatePresence>
       {historyOpen&&<>
