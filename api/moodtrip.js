@@ -544,9 +544,9 @@ function normalizeKartaPhoto(item,target,index){
   if(!imageUrl)return null;
 
   const heading=firstNumber(item,[
-    'heading','gpsDirection','direction','compassAngle','cameraHeading','sequenceIndex'
-  ]);
-  const capturedRaw=firstString(item,['dateAdded','date_added','dateProcessed','timestamp']);
+    'heading','gpsDirection','direction','compassAngle','cameraHeading'
+  ]) ?? firstNumber(item.sequence||{},['heading','gpsDirection','direction']);
+  const capturedRaw=firstString(item,['shotDate','dateAdded','date_added','dateProcessed','timestamp']);
   const capturedAt=capturedRaw?Date.parse(capturedRaw):null;
   const id=String(item.id||item.photoId||item.photo_id||('karta-'+index));
   const sequenceId=String(item.sequenceId||item.sequence_id||item.sequence?.id||'');
@@ -560,7 +560,7 @@ function normalizeKartaPhoto(item,target,index){
     capturedAt:Number.isFinite(capturedAt)?capturedAt:null,
     imageUrl,
     previewUrl:imageUrl,
-    isPano:String(item.fieldOfView||item.sequence?.fieldOfView||'')==='360',
+    isPano:/sphere|360/i.test(String(item.projection||item.fieldOfView||item.sequence?.fieldOfView||'')),
     sequenceId,
     viewerUrl:'https://kartaview.org/map/@'+lat+','+lng+',19z',
     attribution:'KartaView community imagery',
@@ -595,7 +595,7 @@ function panoramaxAssetUrl(feature){
     if(typeof href==='string'&&/^https?:\/\//i.test(href)&&/\.(?:jpe?g|webp|png)(?:\?|$)/i.test(href))return href;
   }
   const p=feature?.properties||{};
-  return firstString(p,['geovisio:thumbnail','thumbnail','preview']);
+  return firstString(p,['geovisio:image','geovisio:thumbnail','thumbnail','preview']);
 }
 
 function normalizePanoramaxFeature(feature,target,index){
@@ -705,21 +705,41 @@ async function openStreetImagery(lat,lng,headers){
     }
   }));
 
-  const all=settled.flatMap(x=>x.items||[])
-    .filter(item=>item&&item.distanceMeters<=900)
-    .sort((a,b)=>a.score-b.score);
+  const byProvider=new Map();
+  settled.forEach(result=>{
+    const items=(result.items||[])
+      .filter(item=>item&&item.distanceMeters<=900)
+      .sort((a,b)=>a.score-b.score);
+    byProvider.set(result.id,items);
+  });
 
-  // Avoid showing a nearly identical burst from a single drive before other
-  // providers. Keep enough imagery for a useful sequence browser.
+  // Interleave sources so one dense provider cannot bury useful imagery from
+  // the others. Within each source the best distance + camera-direction match
+  // still comes first.
   const seen=new Set();
   const balanced=[];
-  for(const item of all){
-    const key=item.providerId+'|'+item.rawId;
-    if(seen.has(key))continue;
-    seen.add(key);
-    balanced.push(item);
-    if(balanced.length>=18)break;
+  let round=0;
+  while(balanced.length<18){
+    let added=false;
+    for(const result of settled){
+      const candidate=(byProvider.get(result.id)||[])[round];
+      if(!candidate)continue;
+      const key=candidate.providerId+'|'+candidate.rawId;
+      if(seen.has(key))continue;
+      seen.add(key);
+      balanced.push(candidate);
+      added=true;
+      if(balanced.length>=18)break;
+    }
+    if(!added)break;
+    round++;
   }
+
+  balanced.sort((a,b)=>{
+    const nearGap=a.distanceMeters-b.distanceMeters;
+    if(Math.abs(nearGap)>90)return nearGap;
+    return a.score-b.score;
+  });
 
   return {
     images:balanced,
