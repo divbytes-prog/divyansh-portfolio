@@ -607,8 +607,9 @@ function App(){
   const [suggestState,setSuggestState]=useState('idle');
   const [suggestOpen,setSuggestOpen]=useState(false);
   const [reviewPlace,setReviewPlace]=useState(null);
-  const [reviewData,setReviewData]=useState(null);
-  const [reviewState,setReviewState]=useState('idle');
+  const [localReviews,setLocalReviews]=useState([]);
+  const [reviewDraftRating,setReviewDraftRating]=useState(5);
+  const [reviewDraftText,setReviewDraftText]=useState('');
   const [places,setPlaces]=useState([]);
   const [selectedId,setSelectedId]=useState(null);
   const [searchState,setSearchState]=useState('idle');
@@ -719,25 +720,43 @@ function App(){
     }
   }
 
-  async function openReviews(place){
+  function reviewStorageKey(place){
+    return 'moodtrip-place-reviews-'+hash([
+      place?.name||'place',
+      Number(place?.lat||0).toFixed(5),
+      Number(place?.lng||0).toFixed(5)
+    ].join('|').toLowerCase());
+  }
+
+  function openReviews(place){
     if(!place)return;
     setReviewPlace(place);
-    setReviewData(null);
-    setReviewState('loading');
+    setReviewDraftRating(5);
+    setReviewDraftText('');
     try{
-      const d=await apiJson(
-        '/api/moodtrip?action=reviews&name='+encodeURIComponent(place.name)+
-        '&lat='+encodeURIComponent(place.lat)+'&lng='+encodeURIComponent(place.lng),
-        {},
-        9000
-      );
-      setReviewData(d);
-      setReviewState('ready');
-    }catch(e){
-      setReviewData({configured:false,mapsUrl:googleMapsUrl(place),error:e.message});
-      setReviewState('error');
+      const saved=JSON.parse(localStorage.getItem(reviewStorageKey(place))||'[]');
+      setLocalReviews(Array.isArray(saved)?saved:[]);
+    }catch{
+      setLocalReviews([]);
     }
   }
+
+  function submitMoodTripReview(e){
+    e?.preventDefault();
+    if(!reviewPlace||!reviewDraftText.trim())return;
+    const item={
+      id:Date.now(),
+      rating:reviewDraftRating,
+      text:reviewDraftText.trim().slice(0,500),
+      createdAt:new Date().toISOString(),
+      mood:resultsMood
+    };
+    const next=[item,...localReviews].slice(0,30);
+    setLocalReviews(next);
+    setReviewDraftText('');
+    try{localStorage.setItem(reviewStorageKey(reviewPlace),JSON.stringify(next))}catch{}
+  }
+
 
   function inferFinalMoodFast(){
     if(mode==='group')return {mood:majority,vector:groupVector};
@@ -1099,39 +1118,44 @@ function App(){
         <motion.button className="mtHistoryScrim" aria-label="Close reviews" onClick={()=>setReviewPlace(null)} initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}/>
         <motion.aside className="mtReviewSheet" initial={{x:'100%'}} animate={{x:0}} exit={{x:'100%'}} transition={{type:'spring',stiffness:190,damping:26}}>
           <div className="mtReviewHead">
-            <div><span>GOOGLE REVIEWS</span><h3>{reviewPlace.name}</h3><p>{reviewPlace.address||locationLabel||'Nearby'}</p></div>
+            <div><span>MOODTRIP REVIEWS</span><h3>{reviewPlace.name}</h3><p>{reviewPlace.address||locationLabel||'Nearby'}</p></div>
             <button onClick={()=>setReviewPlace(null)}>×</button>
           </div>
 
-          {reviewState==='loading'&&<div className="mtReviewLoading"><i/><b>CHECKING GOOGLE PLACE DETAILS…</b></div>}
+          <div className="mtCommunityRating">
+            <div>
+              <strong>{localReviews.length?(localReviews.reduce((sum,r)=>sum+r.rating,0)/localReviews.length).toFixed(1):'—'}</strong>
+              <span>{localReviews.length?'★':'☆'}</span>
+            </div>
+            <p><b>{localReviews.length}</b> MoodTrip review{localReviews.length===1?'':'s'}<small>Saved on this device</small></p>
+          </div>
 
-          {reviewState!=='loading'&&reviewData?.configured&&reviewData?.found&&<>
-            {!!reviewData.photos?.length&&<div className="mtReviewPhotos">
-              {reviewData.photos.map((photo,i)=><figure key={photo.uri+i}>
-                <img src={photo.uri} alt={reviewData.name||reviewPlace.name} loading="lazy"/>
-                {photo.attribution&&<figcaption>Photo: {photo.attribution}</figcaption>}
-              </figure>)}
+          <form className="mtReviewComposer" onSubmit={submitMoodTripReview}>
+            <div className="mtComposerTop"><span>ADD YOUR REVIEW</span><b>{reviewDraftRating}/5</b></div>
+            <div className="mtStarInput" role="radiogroup" aria-label="Rating">
+              {[1,2,3,4,5].map(n=><button type="button" key={n} className={n<=reviewDraftRating?'active':''} onClick={()=>setReviewDraftRating(n)} aria-label={n+' stars'}>★</button>)}
+            </div>
+            <textarea value={reviewDraftText} onChange={e=>setReviewDraftText(e.target.value)} placeholder="What was this place actually like? Crowd, vibe, food, comfort, noise, safety, service…"/>
+            <button className="mtSubmitReview" disabled={!reviewDraftText.trim()}>POST MOODTRIP REVIEW ↗</button>
+          </form>
+
+          <div className="mtCommunityReviewList">
+            {localReviews.length?localReviews.map(r=><article key={r.id}>
+              <div><span>{'★'.repeat(r.rating)}{'☆'.repeat(5-r.rating)}</span><small>{new Date(r.createdAt).toLocaleDateString()}</small></div>
+              <p>{r.text}</p>
+              <b>{String(r.mood||'visit').toUpperCase()} VISIT</b>
+            </article>):<div className="mtNoCommunityReviews">
+              <span>NO MOODTRIP REVIEWS YET</span>
+              <h4>Be the first to leave one.</h4>
+              <p>This section contains only reviews written inside MoodTrip. It does not copy or invent reviews from other websites.</p>
             </div>}
-            <div className="mtRatingHero">
-              <strong>{Number(reviewData.rating||0).toFixed(1)}</strong>
-              <div><span>{'★'.repeat(Math.max(0,Math.round(reviewData.rating||0)))}</span><b>{Intl.NumberFormat().format(reviewData.ratingCount||0)} Google ratings</b></div>
-            </div>
-            <div className="mtReviewList">
-              {(reviewData.reviews||[]).map((r,i)=><article key={i}>
-                <div><b>{r.author}</b><span>{r.rating?Number(r.rating).toFixed(1)+' ★':''}</span></div>
-                <small>{r.relativeTime}</small>
-                <p>{r.text||'No written comment.'}</p>
-              </article>)}
-            </div>
-          </>}
+          </div>
 
-          {reviewState!=='loading'&&(!reviewData?.configured||!reviewData?.found)&&<div className="mtReviewUnavailable">
-            <span>GOOGLE REVIEWS</span>
-            <h4>{reviewData?.configured?'Google did not return a matched review set for this place.':'Google reviews are ready to connect.'}</h4>
-            <p>Once a Google Places API key is connected, this exact panel will show the live Google rating, total rating count, review excerpts and official Google place photos like storefront/building images. Until then, the button below opens the verified live Google listing instead of showing fake data.</p>
-          </div>}
-
-          <a className="mtGoogleReviewButton" href={reviewData?.reviewsUrl||reviewData?.mapsUrl||googleMapsUrl(reviewPlace)} target="_blank" rel="noreferrer">OPEN LIVE GOOGLE REVIEWS ↗</a>
+          <div className="mtExternalReviews">
+            <span>EXTERNAL REVIEWS</span>
+            <p>Want the latest public Google rating and comments for this place?</p>
+            <a href={googleMapsUrl(reviewPlace)} target="_blank" rel="noreferrer">SEE LIVE GOOGLE REVIEWS ↗</a>
+          </div>
         </motion.aside>
       </>}
     </AnimatePresence>
