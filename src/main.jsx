@@ -12,6 +12,7 @@ import{
 }from'motion/react';
 import AeroShards from'./AeroShards';
 import portraitData from'./portraitData';
+import MoodTrip from'./MoodTrip';
 import'./styles.css';
 
 const projects=[
@@ -770,4 +771,5 @@ function App(){
   </main>
 }
 
-createRoot(document.getElementById('root')).render(<App/>);
+const cleanPath=window.location.pathname.replace(/\/+$/,'')||'/';
+createRoot(document.getElementById('root')).render(cleanPath==='/moodtrip'?<MoodTrip/>:<App/>);
