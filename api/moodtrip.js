@@ -269,8 +269,15 @@ async function searchAddressSuggestions(q,lat,lng,headers){
   const deduped=new Map();
   items.forEach(item=>{
     const key=suggestionKey(item);
+    const qNorm=q.toLowerCase().replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
+    const labelNorm=String(item.label||'').toLowerCase().replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
+    const fullNorm=String(item.fullLabel||'').toLowerCase();
+    const labelAtStart=labelNorm&&qNorm.startsWith(labelNorm);
+    const exactLabel=qNorm===labelNorm;
     const score=(item.importance||0)*100+suggestionDistanceBias(item,bias)
-      +(String(item.fullLabel||'').toLowerCase().includes(q.toLowerCase())?18:0);
+      +(fullNorm.includes(qNorm)?18:0)
+      +(labelAtStart?48:0)
+      +(exactLabel?35:0);
     const prev=deduped.get(key);
     if(!prev||score>prev._score)deduped.set(key,{...item,_score:score});
   });
