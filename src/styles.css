@@ -1182,3 +1182,151 @@ a:focus-visible,button:focus-visible{outline:2px solid var(--clay);outline-offse
     max-width:62%;
   }
 }
+
+
+/* architecture-driven project visualization */
+.renderViewport:not(.compact)::after{
+  content:'BUILD FLOW / CASE STUDY';
+  top:56px;
+  color:rgba(239,228,218,.42);
+}
+.projectArchitecture{
+  position:absolute;
+  z-index:3;
+  left:22px;
+  top:43%;
+  width:61%;
+  pointer-events:none;
+}
+.projectArchitecture>span{
+  display:block;
+  margin-bottom:10px;
+  font:500 8px 'IBM Plex Mono';
+  letter-spacing:.14em;
+  color:#c28d76;
+}
+.projectArchitecture>div{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  min-width:0;
+  padding-top:10px;
+  border-top:1px solid rgba(242,238,231,.13);
+}
+.projectArchitecture b{
+  flex:1 1 auto;
+  min-width:0;
+  font:500 clamp(7px,.64vw,9px)/1.35 'IBM Plex Mono';
+  letter-spacing:.04em;
+  color:#cfc3bb;
+  text-align:center;
+}
+.projectArchitecture i{
+  flex:0 0 auto;
+  font:400 10px 'IBM Plex Mono';
+  font-style:normal;
+  color:#8f6758;
+}
+.projectStreamCard{
+  bottom:48px;
+  width:min(590px,49%);
+}
+.projectStreamCard h3{
+  font-size:clamp(24px,2.15vw,38px);
+}
+.projectStreamCard p{
+  margin:11px 0 10px;
+  line-height:1.48;
+}
+.projectStreamTabs{
+  top:68px;
+  width:min(350px,31%);
+}
+.projectStreamTabs button{
+  padding:9px 8px;
+}
+.renderHud.bottom{
+  align-items:flex-end;
+}
+.renderHud.bottom b{
+  margin-left:auto;
+  max-width:52%;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.renderFeatureCopy p{
+  max-width:180px;
+}
+
+@media(max-width:1000px){
+  .projectArchitecture{
+    width:58%;
+  }
+  .projectStreamTabs{
+    width:min(315px,33%);
+  }
+  .projectStreamCard{
+    width:50%;
+  }
+}
+@media(max-width:880px){
+  .renderViewport:not(.compact){
+    min-height:700px;
+  }
+  .projectArchitecture{
+    left:18px;
+    right:18px;
+    top:34%;
+    width:auto;
+  }
+  .projectArchitecture>div{
+    gap:5px;
+  }
+  .projectArchitecture b{
+    font-size:7px;
+  }
+  .projectStreamCard{
+    bottom:248px;
+    width:min(590px,86%);
+  }
+  .projectStreamTabs{
+    bottom:44px;
+  }
+  .renderViewport:not(.compact)::after{
+    left:18px;
+  }
+}
+@media(max-width:600px){
+  .renderViewport:not(.compact){
+    min-height:760px;
+  }
+  .projectArchitecture{
+    left:14px;
+    right:14px;
+    top:27%;
+  }
+  .projectArchitecture>div{
+    align-items:flex-start;
+    flex-wrap:wrap;
+    row-gap:8px;
+  }
+  .projectArchitecture b{
+    flex:0 1 auto;
+    font-size:7px;
+    text-align:left;
+  }
+  .projectArchitecture i{
+    font-size:8px;
+  }
+  .projectStreamCard{
+    bottom:300px;
+  }
+  .projectStreamCard h3{
+    font-size:26px;
+  }
+  .renderHud.bottom b{
+    max-width:58%;
+    font-size:7px;
+  }
+}
