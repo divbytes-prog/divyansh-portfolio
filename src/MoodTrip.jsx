@@ -395,8 +395,15 @@ function tileY(lat,z){
 }
 
 function TileMap({center,places,selectedId,onSelect}){
-  const [zoom,setZoom]=useState(14);
-  useEffect(()=>{setZoom(14)},[center?.lat,center?.lng]);
+  const [zoom,setZoom]=useState(18);
+  const [layer,setLayer]=useState('satellite');
+
+  useEffect(()=>{
+    // Selecting a result behaves like Google Maps: recenter and zoom close enough
+    // to inspect the actual building/plot around the place.
+    setZoom(18);
+  },[center?.lat,center?.lng,selectedId]);
+
   if(!center)return null;
 
   const size=256;
@@ -404,31 +411,53 @@ function TileMap({center,places,selectedId,onSelect}){
   const baseX=Math.floor(cx)-2,baseY=Math.floor(cy)-2;
   const centerPx=(cx-baseX)*size,centerPy=(cy-baseY)*size;
   const tiles=[];
+
   for(let y=0;y<5;y++)for(let x=0;x<5;x++){
     const tx=baseX+x,ty=baseY+y;
-    tiles.push(<img
-      key={tx+'-'+ty+'-'+zoom}
-      className="mtTile"
-      style={{left:x*size,top:y*size}}
-      src={'https://basemaps.cartocdn.com/light_all/'+zoom+'/'+tx+'/'+ty+'@2x.png'}
-      alt=""
-      draggable="false"
-      onError={e=>{
-        const el=e.currentTarget;
-        if(!el.dataset.fallback){
-          el.dataset.fallback='1';
-          el.src='https://tile.openstreetmap.org/'+zoom+'/'+tx+'/'+ty+'.png';
-        }else{
-          el.style.opacity='.08';
-        }
-      }}
-    />);
+    const satellite='https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/'+zoom+'/'+ty+'/'+tx;
+    const street='https://tile.openstreetmap.org/'+zoom+'/'+tx+'/'+ty+'.png';
+    const labels='https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/'+zoom+'/'+ty+'/'+tx;
+
+    tiles.push(<React.Fragment key={tx+'-'+ty+'-'+zoom+'-'+layer}>
+      <img
+        className={'mtTile '+(layer==='satellite'?'satellite':'street')}
+        style={{left:x*size,top:y*size}}
+        src={layer==='satellite'?satellite:street}
+        alt=""
+        draggable="false"
+        onError={e=>{
+          const el=e.currentTarget;
+          if(!el.dataset.fallback){
+            el.dataset.fallback='1';
+            el.src=street;
+          }else{
+            el.style.opacity='.08';
+          }
+        }}
+      />
+      {layer==='satellite'&&<img
+        className="mtTile mtTileLabels"
+        style={{left:x*size,top:y*size}}
+        src={labels}
+        alt=""
+        draggable="false"
+        onError={e=>{e.currentTarget.style.display='none'}}
+      />}
+    </React.Fragment>);
   }
 
+  const visiblePlaces=places.slice(0,8);
+
   return <div className="mtTileMap">
+    <div className="mtMapLayerSwitch" role="group" aria-label="Map style">
+      <button className={layer==='satellite'?'active':''} onClick={()=>setLayer('satellite')}>SATELLITE</button>
+      <button className={layer==='street'?'active':''} onClick={()=>setLayer('street')}>STREET</button>
+    </div>
+
     <div className="mtTileCanvas" style={{left:'calc(50% - '+centerPx+'px)',top:'calc(50% - '+centerPy+'px)'}}>
       {tiles}
-      {places.slice(0,8).map((p,i)=>{
+
+      {visiblePlaces.map((p,i)=>{
         const px=(tileX(p.lng,zoom)-baseX)*size;
         const py=(tileY(p.lat,zoom)-baseY)*size;
         return <button
@@ -438,15 +467,22 @@ function TileMap({center,places,selectedId,onSelect}){
           onClick={()=>onSelect(p.id)}
           title={p.name}
           aria-label={'Show '+p.name}
-        ><span>{i+1}</span></button>;
+        >
+          <span>{i+1}</span>
+          {selectedId===p.id&&<b>{p.name}</b>}
+        </button>;
       })}
     </div>
+
     <div className="mtMapCrosshair" aria-hidden="true"/>
     <div className="mtMapZoom">
-      <button onClick={()=>setZoom(z=>Math.min(17,z+1))} aria-label="Zoom in">+</button>
-      <button onClick={()=>setZoom(z=>Math.max(11,z-1))} aria-label="Zoom out">−</button>
+      <button onClick={()=>setZoom(z=>Math.min(19,z+1))} aria-label="Zoom in">+</button>
+      <button onClick={()=>setZoom(z=>Math.max(12,z-1))} aria-label="Zoom out">−</button>
     </div>
-    <div className="mtMapAttribution">© OpenStreetMap · CARTO</div>
+    <div className="mtZoomReadout">Z{zoom} · {layer==='satellite'?'SATELLITE':'STREET'}</div>
+    <div className="mtMapAttribution">
+      {layer==='satellite'?'Imagery © Esri, Maxar, Earthstar Geographics':'© OpenStreetMap contributors'}
+    </div>
   </div>;
 }
 
