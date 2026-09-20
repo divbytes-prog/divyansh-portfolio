@@ -21,7 +21,8 @@ import{
   totalFeedbackSignals,
   feedbackKey,
   explainDistilledRanker,
-  placeFeedbackAdjustment
+  placeFeedbackAdjustment,
+  mergeFeedbackMaps
 }from'./moodtripML';
 import'leaflet/dist/leaflet.css';
 import'./moodtrip.css';
@@ -910,6 +911,9 @@ function App(){
   const [history,setHistory]=useState([]);
   const [historyOpen,setHistoryOpen]=useState(false);
   const [feedback,setFeedback]=useState({});
+  const [globalFeedback,setGlobalFeedback]=useState({});
+  const [feedbackStorage,setFeedbackStorage]=useState({mode:'checking',rows:0,degraded:false});
+  const [sessionId,setSessionId]=useState('');
   const [resultsMood,setResultsMood]=useState('happy');
 
   useEffect(()=>{
@@ -917,6 +921,9 @@ function App(){
     try{
       setHistory(JSON.parse(localStorage.getItem('moodtrip-v2-history')||'[]'));
       setFeedback(JSON.parse(localStorage.getItem('moodtrip-v3-feedback')||'{}'));
+      let sid=localStorage.getItem('moodtrip-session-id');
+      if(!sid){sid='mt-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,10);localStorage.setItem('moodtrip-session-id',sid)}
+      setSessionId(sid);
     }catch{}
   },[]);
 
@@ -924,6 +931,26 @@ function App(){
     setGroupMoods(prev=>Array.from({length:groupCount},(_,i)=>prev[i]||soloMood));
   },[groupCount,soloMood]);
 
+  useEffect(()=>{
+    let alive=true;
+    (async()=>{
+      try{
+        const d=await apiJson('/api/feedback?mood='+encodeURIComponent(activeMood),{},5000);
+        if(!alive)return;
+        setGlobalFeedback(d.feedback||{});
+        setFeedbackStorage({
+          mode:d.storage==='supabase'?'global':'local',
+          rows:Number(d.rows)||0,
+          degraded:Boolean(d.degraded)
+        });
+      }catch{
+        if(!alive)return;
+        setGlobalFeedback({});
+        setFeedbackStorage({mode:'local',rows:0,degraded:true});
+      }
+    })();
+    return()=>{alive=false};
+  },[activeMood]);
 
   useEffect(()=>{
     if(!suggestOpen||manualCity.trim().length<2){
@@ -960,8 +987,10 @@ function App(){
   const activeMood=mode==='group'?majority:soloMood;
   const activeVector=mode==='group'?groupVector:(MOOD_VECTORS[soloMood]||MOOD_VECTORS.happy);
   const activeCrowd=crowd==='any'?CROWD_DEFAULT[activeMood]:crowd;
+  const adaptiveFeedback=useMemo(()=>mergeFeedbackMaps(globalFeedback,feedback),[globalFeedback,feedback]);
   const selected=places.find(p=>p.id===selectedId)||places[0]||null;
   const feedbackSignals=useMemo(()=>totalFeedbackSignals(feedback),[feedback]);
+  const globalFeedbackSignals=useMemo(()=>totalFeedbackSignals(globalFeedback),[globalFeedback]);
   const selectedExplanation=useMemo(()=>{
     if(!selected?.rankFeatures)return null;
     const sensitivity=explainDistilledRanker(selected.rankFeatures);
@@ -976,8 +1005,8 @@ function App(){
         moodVector.forEach((v,i)=>{features[i]=v});
         const neural=predictDistilledRanker(features);
         const content=(cosine(moodVector,categoryVector)+1)/2;
-        const bandit=contextualBanditScore(feedback,mood,selected.category);
-        const item=placeFeedbackAdjustment(feedback,mood,selected.id);
+        const bandit=contextualBanditScore(adaptiveFeedback,mood,selected.category);
+        const item=placeFeedbackAdjustment(adaptiveFeedback,mood,selected.id);
         const score=clamp(productionEnsembleScore({
           neuralScore:neural,
           contentScore:content,
@@ -987,14 +1016,14 @@ function App(){
       })
       .sort((a,b)=>b.score-a.score);
 
-    const currentItem=placeFeedbackAdjustment(feedback,resultsMood,selected.id);
+    const currentItem=placeFeedbackAdjustment(adaptiveFeedback,resultsMood,selected.id);
     return {
       sensitivity:normalized,
       strongest:normalized[0]||null,
       counterfactual:alternatives[0]||null,
       feedbackDelta:currentItem.adjustment*100
     };
-  },[selected,resultsMood,feedback]);
+  },[selected,resultsMood,adaptiveFeedback]);
 
   async function useMyLocation(){
     setError('');
@@ -1150,8 +1179,8 @@ function App(){
       });
 
       const neuralScore=predictDistilledRanker(rankFeatures);
-      const bandit=contextualBanditScore(feedback,mood,p.category);
-      const itemFeedback=placeFeedbackAdjustment(feedback,mood,p.id);
+      const bandit=contextualBanditScore(adaptiveFeedback,mood,p.category);
+      const itemFeedback=placeFeedbackAdjustment(adaptiveFeedback,mood,p.id);
       const finalScore=clamp(productionEnsembleScore({
         neuralScore,
         contentScore,
@@ -1269,9 +1298,10 @@ function App(){
     setFeedback(next);
     try{localStorage.setItem('moodtrip-v3-feedback',JSON.stringify(next))}catch{}
 
+    const combined=mergeFeedbackMaps(globalFeedback,next);
     setPlaces(prev=>sortRankedPlaces(prev.map(p=>{
-      const bandit=contextualBanditScore(next,resultsMood,p.category);
-      const item=placeFeedbackAdjustment(next,resultsMood,p.id);
+      const bandit=contextualBanditScore(combined,resultsMood,p.category);
+      const item=placeFeedbackAdjustment(combined,resultsMood,p.id);
       const neural=(Number(p.neuralScore)||0)/100;
       const content=(Number(p.contentScore)||Number(p.moodFit)||0)/100;
       const mlScore=clamp(productionEnsembleScore({
@@ -1291,8 +1321,36 @@ function App(){
       };
     })));
 
-    // If the currently selected card is rejected, let the next highest-ranked
-    // recommendation take focus instead of keeping the rejected place pinned.
+    // Fire-and-forget anonymous global learning. Local personalization is
+    // already committed above, so a database outage cannot break the UI.
+    if(sessionId){
+      apiJson('/api/feedback',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          sessionId,
+          mood:resultsMood,
+          category:place.category,
+          placeId:String(place.id),
+          placeName:place.name,
+          positive,
+          modelScore:place.mlScore,
+          neuralScore:place.neuralScore,
+          distanceKm:place.distanceKm,
+          rating:place.rating,
+          groupMode:mode==='group',
+          rankFeatures:place.rankFeatures,
+          modelVersion:'distilled-nn-v1'
+        })
+      },5000).then(d=>{
+        setFeedbackStorage(prev=>({
+          mode:d.storage==='supabase'?'global':'local',
+          rows:prev.rows,
+          degraded:d.stored===false&&d.configured===true
+        }));
+      }).catch(()=>setFeedbackStorage(prev=>({...prev,mode:'local',degraded:true})));
+    }
+
     if(!positive&&selectedId===place.id)setSelectedId(null);
   }
 
@@ -1529,7 +1587,7 @@ function App(){
             <div>
               <span>EXPLAINABLE AI / SELECTED PLACE</span>
               <h3>Why did the model choose <em>{selected.name}</em>?</h3>
-              <p>This is a local sensitivity explanation of the production neural ranker. Each feature group is neutralized one at a time to measure how much the score changes. It is an ablation explanation, not a SHAP claim.</p>
+              <p>This explanation uses Integrated Gradients directly through the distilled neural network. Feature attributions are integrated from a neutral contextual baseline to the selected recommendation, then grouped into human-readable signals.</p>
             </div>
             <div className="mtExplainScore">
               <strong>{Math.round(selected.mlScore)}%</strong>
@@ -1607,7 +1665,8 @@ function App(){
         <div className="mtEvalStats">
           <div><strong>{ML_BENCHMARK['Production Distilled NN'].ndcg_at_5.toFixed(3)}</strong><span>NDCG@5<br/>PRODUCTION NN</span></div>
           <div><strong>{MOOD_TEXT_BENCHMARK.macro_f1.toFixed(3)}</strong><span>MACRO F1<br/>TEXT BASELINE</span></div>
-          <div><strong>{feedbackSignals}</strong><span>LIVE FEEDBACK<br/>THIS DEVICE</span></div>
+          <div><strong>{feedbackSignals}</strong><span>LOCAL SIGNALS<br/>THIS DEVICE</span></div>
+          <div><strong>{feedbackStorage.mode==='global'?globalFeedbackSignals:'—'}</strong><span>{feedbackStorage.mode==='global'?'GLOBAL SIGNALS':'LOCAL FALLBACK'}<br/>{feedbackStorage.degraded?'DEGRADED':'ONLINE LEARNING'}</span></div>
         </div>
       </div>
 
