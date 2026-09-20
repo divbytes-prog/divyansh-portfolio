@@ -10,6 +10,17 @@ import{
 }from'motion/react';
 import L from'leaflet';
 import AeroShards from'./AeroShards';
+import{
+  ML_BENCHMARK,
+  ML_META,
+  MOOD_TEXT_BENCHMARK,
+  buildRankFeatures,
+  predictDistilledRanker,
+  contextualBanditScore,
+  productionEnsembleScore,
+  totalFeedbackSignals,
+  feedbackKey
+}from'./moodtripML';
 import'leaflet/dist/leaflet.css';
 import'./moodtrip.css';
 
@@ -885,14 +896,14 @@ function App(){
   const [error,setError]=useState('');
   const [history,setHistory]=useState([]);
   const [historyOpen,setHistoryOpen]=useState(false);
-  const [likes,setLikes]=useState({});
+  const [feedback,setFeedback]=useState({});
   const [resultsMood,setResultsMood]=useState('happy');
 
   useEffect(()=>{
     document.title='MoodTrip — Mood-Based Trip Planner';
     try{
       setHistory(JSON.parse(localStorage.getItem('moodtrip-v2-history')||'[]'));
-      setLikes(JSON.parse(localStorage.getItem('moodtrip-v2-likes')||'{}'));
+      setFeedback(JSON.parse(localStorage.getItem('moodtrip-v3-feedback')||'{}'));
     }catch{}
   },[]);
 
@@ -937,6 +948,7 @@ function App(){
   const activeVector=mode==='group'?groupVector:(MOOD_VECTORS[soloMood]||MOOD_VECTORS.happy);
   const activeCrowd=crowd==='any'?CROWD_DEFAULT[activeMood]:crowd;
   const selected=places.find(p=>p.id===selectedId)||places[0]||null;
+  const feedbackSignals=useMemo(()=>totalFeedbackSignals(feedback),[feedback]);
 
   async function useMyLocation(){
     setError('');
@@ -1049,6 +1061,21 @@ function App(){
     return {mood,vector:MOOD_VECTORS[mood]||MOOD_VECTORS[soloMood]};
   }
 
+  function sortRankedPlaces(list){
+    return [...list].sort((a,b)=>{
+      const scoreGap=(b.mlScore||0)-(a.mlScore||0);
+      const distanceGap=(a.distanceKm||0)-(b.distanceKm||0);
+
+      // Keep the original product promise: distance remains a strong ordering
+      // signal unless the learned model is meaningfully more confident.
+      if(Math.abs(distanceGap)>1.5&&Math.abs(scoreGap)<8)return distanceGap;
+      if(Math.abs(scoreGap)>.25)return scoreGap;
+      if(a.rating!=null&&b.rating!=null&&a.rating!==b.rating)return b.rating-a.rating;
+      if((a.reviewCount||0)!==(b.reviewCount||0))return (b.reviewCount||0)-(a.reviewCount||0);
+      return distanceGap;
+    });
+  }
+
   function rankPlacesFast(raw,mood,vector){
     if(!raw.length)return [];
     const clustered=kMeans(raw,4);
@@ -1056,6 +1083,7 @@ function App(){
     clustered.forEach(p=>clusterScores.set(p.cluster,cosine(p.clusterVector,vector)));
     const bestClusters=[...clusterScores.entries()].sort((a,b)=>b[1]-a[1]).slice(0,3).map(x=>x[0]);
     const shortlist=clustered.filter(p=>bestClusters.includes(p.cluster));
+
     const enriched=shortlist.map(p=>{
       const feature=CATEGORY_FEATURES[p.category]||CATEGORY_FEATURES.unknown;
       const distanceKm=haversine(coords,p);
@@ -1063,20 +1091,42 @@ function App(){
       const distNorm=clamp(distanceKm/Math.max(radiusKm,1));
       const estimate=crowdEstimate(p.category);
       const cFit=crowdFit(activeCrowd,estimate);
-      const moodFit=(cosine(vector,feature)+1)/2;
-      let mlScore=100*clamp(.56*moodFit+.24*(1-distNorm)+.12*ratingNorm+.08*cFit);
-      const affinity=likes[p.category]||0;
-      mlScore=clamp((mlScore+Math.min(affinity,6)*1.2)/100)*100;
-      return {...p,distanceKm,mlScore,crowdEstimate:estimate,moodFit};
+      const contentScore=(cosine(vector,feature)+1)/2;
+
+      const rankFeatures=buildRankFeatures({
+        moodVector:vector,
+        categoryVector:feature,
+        distanceNorm:distNorm,
+        ratingNorm,
+        crowdFit:cFit,
+        groupMode:mode==='group',
+        hour:new Date().getHours()
+      });
+
+      const neuralScore=predictDistilledRanker(rankFeatures);
+      const bandit=contextualBanditScore(feedback,mood,p.category);
+      const finalScore=productionEnsembleScore({
+        neuralScore,
+        contentScore,
+        banditScore:bandit.score
+      });
+
+      return {
+        ...p,
+        distanceKm,
+        mlScore:finalScore*100,
+        neuralScore:neuralScore*100,
+        contentScore:contentScore*100,
+        banditScore:bandit.score*100,
+        banditMean:bandit.mean*100,
+        banditObservations:bandit.observations,
+        crowdEstimate:estimate,
+        moodFit:contentScore,
+        rankFeatures
+      };
     }).filter(p=>(MOOD_CATEGORIES[mood]||[]).includes(p.category)||p.moodFit>.76);
 
-    return enriched.sort((a,b)=>{
-      const distanceGap=a.distanceKm-b.distanceKm;
-      if(Math.abs(distanceGap)>.7)return distanceGap;
-      if(a.rating!=null&&b.rating!=null&&a.rating!==b.rating)return b.rating-a.rating;
-      if((a.reviewCount||0)!==(b.reviewCount||0))return (b.reviewCount||0)-(a.reviewCount||0);
-      return b.mlScore-a.mlScore;
-    }).slice(0,12);
+    return sortRankedPlaces(enriched).slice(0,12);
   }
 
   async function runDeepMood(){
@@ -1127,7 +1177,7 @@ function App(){
       const ranked=rankPlacesFast(raw||[],mood,vector);
       setPlaces(ranked);
       setSelectedId(ranked[0]?.id||null);
-      setForestState('fast');
+      setForestState('neural');
       setSearchState('ready');
 
       if(!ranked.length){
@@ -1148,10 +1198,38 @@ function App(){
     }
   }
 
-  function likePlace(place){
-    const next={...likes,[place.category]:(likes[place.category]||0)+1};
-    setLikes(next);
-    try{localStorage.setItem('moodtrip-v2-likes',JSON.stringify(next))}catch{}
+  function recordPreference(place,positive){
+    const key=feedbackKey(resultsMood,place.category);
+    const current=feedback[key]||{pos:0,neg:0};
+    const next={
+      ...feedback,
+      [key]:{
+        pos:(Number(current.pos)||0)+(positive?1:0),
+        neg:(Number(current.neg)||0)+(positive?0:1)
+      }
+    };
+    setFeedback(next);
+    try{localStorage.setItem('moodtrip-v3-feedback',JSON.stringify(next))}catch{}
+
+    // Update every currently visible candidate immediately so the user can see
+    // the online learner change the ranking without running another search.
+    setPlaces(prev=>sortRankedPlaces(prev.map(p=>{
+      const bandit=contextualBanditScore(next,resultsMood,p.category);
+      const neural=(Number(p.neuralScore)||0)/100;
+      const content=(Number(p.contentScore)||Number(p.moodFit)||0)/100;
+      const mlScore=productionEnsembleScore({
+        neuralScore:neural,
+        contentScore:content,
+        banditScore:bandit.score
+      })*100;
+      return {
+        ...p,
+        mlScore,
+        banditScore:bandit.score*100,
+        banditMean:bandit.mean*100,
+        banditObservations:bandit.observations
+      };
+    })));
   }
 
   const mapCenter=useMemo(()=>selected?{lat:selected.lat,lng:selected.lng}:coords,[selected,coords]);
@@ -1206,10 +1284,10 @@ function App(){
 
     <section className="mtTechStrip">
       {[
-        ['01','TRANSFORMER','emotion classification'],
-        ['02','K-MEANS','vibe clustering'],
-        ['03','RANK FUSION','fast suitability scoring'],
-        ['04',provider.toUpperCase(),'nearby place discovery']
+        ['01','TRANSFORMER','deep emotion classification'],
+        ['02','K-MEANS','unsupervised vibe clustering'],
+        ['03','DISTILLED NN','learned recommendation scoring'],
+        ['04','BAYES BANDIT',feedback-driven adaptation']
       ].map(([n,a,b],i)=><motion.div key={a} initial={{opacity:0,y:18}} whileInView={{opacity:1,y:0}} viewport={{once:true}} transition={{delay:i*.06}}><span>{n}</span><b>{a}</b><small>{b}</small></motion.div>)}
     </section>
 
@@ -1311,8 +1389,8 @@ function App(){
         {[
           ['TEXT / MOOD','Transformer','emotion probabilities',modelState==='ready'?'READY':modelState==='loading'?'LOADING':'LAZY'],
           ['PLACE FEATURES','K-Means','vibe cluster vectors',places.length?String(new Set(places.map(p=>p.cluster)).size)+' CLUSTERS':'WAITING'],
-          ['SUITABILITY','Rank Fusion','mood + distance + crowd',forestState==='fast'?'FAST MODE':'READY'],
-          ['FINAL ORDER','Rank fusion','distance → rating → ML',provider.toUpperCase()]
+          ['SUITABILITY','Distilled Neural Ranker','22 contextual features',forestState==='neural'?'NN ACTIVE':'READY'],
+          ['FINAL ORDER','Adaptive Ensemble','neural + content + bandit',provider.toUpperCase()]
         ].map(([a,b,c,d],i)=><React.Fragment key={b}>
           <motion.div className="mtPipeNode" initial={{opacity:0,scale:.9}} whileInView={{opacity:1,scale:1}} viewport={{once:true}} transition={{delay:i*.08,type:'spring'}}><span>{a}</span><h3>{b}</h3><p>{c}</p><b>{d}</b></motion.div>
           {i<3&&<div className="mtPipeLine"><motion.i animate={reduce?undefined:{x:['-20%','120%']}} transition={{duration:2.2,repeat:Infinity,delay:i*.45,ease:'linear'}}/></div>}
@@ -1365,12 +1443,15 @@ function App(){
                 <div className="mtPlaceSignals">
                   <span><b>{p.distanceKm.toFixed(1)} km</b> distance</span>
                   <span><b>{p.rating?Number(p.rating).toFixed(1):'—'}</b> rating</span>
-                  <span><b>{p.reviewCount?Intl.NumberFormat().format(p.reviewCount):'—'}</b> reviews</span>
+                  <span><b>{Math.round(p.neuralScore||0)}%</b> neural</span>
+                  <span><b>{Math.round(p.banditMean||50)}%</b> learned preference</span>
+                  <span><b>{p.banditObservations||0}</b> feedback samples</span>
                   <span><b>{p.crowdEstimate}</b> crowd proxy</span>
                 </div>
               </div>
               <div className="mtPlaceActions">
-                <button onClick={e=>{e.stopPropagation();likePlace(p)}}>GOOD PICK +</button>
+                <button onClick={e=>{e.stopPropagation();recordPreference(p,true)}}>GOOD PICK +</button>
+                <button className="negative" onClick={e=>{e.stopPropagation();recordPreference(p,false)}}>NOT FOR ME −</button>
                 <button onClick={e=>{e.stopPropagation();openReviews(p)}}>REVIEWS ↗</button>
                 <a onClick={e=>e.stopPropagation()} href={googleMapsUrl(p)} target="_blank" rel="noreferrer">MAPS ↗</a>
               </div>
@@ -1389,13 +1470,65 @@ function App(){
       </div>
       <div className="mtDSGrid">
         {[
-          ['A','DEEP EMOTION','A quantized RoBERTa emotion model runs in the browser on demand. Manual mood remains available as an explicit user signal.'],
-          ['B','GROUP VECTOR','Every group member contributes a mood vector. Majority decides the label; ties are resolved from the averaged group vector.'],
-          ['C','UNSUPERVISED VIBES','K-Means groups nearby candidates by atmosphere features instead of relying only on OSM/Google category names.'],
-          ['D','ENSEMBLE RANKING','Fast rank fusion scores mood fit, exact distance, crowd preference and rating signal. Heavy models never block the first result set.'],
-          ['E','ONLINE FEEDBACK','“Good pick” feedback is stored locally and adds a small category affinity bonus on later searches.'],
-          ['F','CONTEXT','Distance radius, crowd preference, group state and current mood all become model features rather than visual-only filters.']
+          ['A','DEEP EMOTION','A quantized RoBERTa emotion model runs on demand for richer text emotion inference, while explicit mood selection remains available.'],
+          ['B','DISTILLED NEURAL RANKER','A 22-feature browser MLP is distilled from a teacher ensemble trained with Random Forest, XGBoost and a larger neural recommender.'],
+          ['C','UNSUPERVISED VIBES','K-Means groups nearby candidates by atmosphere features before supervised ranking, giving the system a real unsupervised representation layer.'],
+          ['D','CONTEXTUAL FEATURES','Mood vector, place vector, normalized distance, rating, crowd fit, group state and cyclic time features all enter the learned ranker.'],
+          ['E','BAYESIAN FEEDBACK','Good Pick / Not For Me signals update a mood×category Beta posterior. The posterior immediately changes ranking on this device.'],
+          ['F','EVALUATION HARNESS','Rule-based, content-based, Random Forest, XGBoost, neural and distilled models are compared with Precision@5, Recall@5, NDCG@5, MAE and latency.']
         ].map(([n,t,p],i)=><PopWindow key={t} className="mtDSCard" delay={i*.04}><span>{n}</span><h3>{t}</h3><p>{p}</p></PopWindow>)}
+      </div>
+    </section>
+
+    <section className="mtEvaluation" id="ml-benchmark">
+      <div className="mtSectionHead">
+        <p className="mtEyebrow">05 / ML EVALUATION LAB</p>
+        <h2>Not just a model.<br/><em>A measured recommender.</em></h2>
+      </div>
+
+      <div className="mtEvalIntro">
+        <div>
+          <span>OFFLINE RANKING BENCHMARK</span>
+          <b>{Intl.NumberFormat().format(ML_META.samples)} candidate rows · {Intl.NumberFormat().format(ML_META.training_sessions)} sessions</b>
+          <p>The ranking benchmark is a deterministic controlled preference simulation generated by the training pipeline. It is useful for model comparison, but it is not presented as real-world user-study evidence.</p>
+        </div>
+        <div className="mtEvalStats">
+          <div><strong>{ML_BENCHMARK['Production Distilled NN'].ndcg_at_5.toFixed(3)}</strong><span>NDCG@5<br/>PRODUCTION NN</span></div>
+          <div><strong>{MOOD_TEXT_BENCHMARK.macro_f1.toFixed(3)}</strong><span>MACRO F1<br/>TEXT BASELINE</span></div>
+          <div><strong>{feedbackSignals}</strong><span>LIVE FEEDBACK<br/>THIS DEVICE</span></div>
+        </div>
+      </div>
+
+      <div className="mtBenchmarkTable">
+        <div className="mtBenchmarkRow head">
+          <span>MODEL</span><span>P@5</span><span>R@5</span><span>NDCG@5</span><span>MAE</span><span>MS / 1K</span>
+        </div>
+        {Object.entries(ML_BENCHMARK).map(([name,m])=><div
+          key={name}
+          className={'mtBenchmarkRow '+(name==='Production Distilled NN'?'production':'')}
+        >
+          <span><b>{name}</b>{name==='Production Distilled NN'&&<small>LIVE</small>}</span>
+          <span>{m.precision_at_5.toFixed(3)}</span>
+          <span>{m.recall_at_5.toFixed(3)}</span>
+          <span>{m.ndcg_at_5.toFixed(3)}</span>
+          <span>{m.mae.toFixed(3)}</span>
+          <span>{m.latency_ms_per_1000.toFixed(2)}</span>
+        </div>)}
+      </div>
+
+      <div className="mtDistillDiagram">
+        <div><span>TEACHER 01</span><b>NEURAL</b><small>65%</small></div>
+        <i>+</i>
+        <div><span>TEACHER 02</span><b>RANDOM FOREST</b><small>20%</small></div>
+        <i>+</i>
+        <div><span>TEACHER 03</span><b>XGBOOST</b><small>15%</small></div>
+        <i>→</i>
+        <div className="student"><span>PRODUCTION</span><b>16×8 MLP</b><small>DISTILLED</small></div>
+      </div>
+
+      <div className="mtBenchmarkNote">
+        <span>TEXT BENCHMARK</span>
+        <p>{MOOD_TEXT_BENCHMARK.model} reaches <b>{(MOOD_TEXT_BENCHMARK.macro_f1*100).toFixed(1)}% macro-F1</b> on a {MOOD_TEXT_BENCHMARK.holdout}-phrase holdout from a curated {MOOD_TEXT_BENCHMARK.samples}-phrase, 12-mood benchmark. The on-demand RoBERTa model remains the deeper production text path.</p>
       </div>
     </section>
 
