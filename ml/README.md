@@ -12,7 +12,7 @@ This folder contains the reproducible offline ML pipeline behind MoodTrip's prod
 6. **Teacher ensemble** — 65% neural + 20% Random Forest + 15% XGBoost.
 7. **Production distilled neural ranker** — a small 16×8 MLP trained to imitate the teacher ensemble for fast browser inference.
 
-The browser combines the distilled neural score with content similarity and a per-device contextual Bayesian feedback score.
+The browser combines the distilled neural score with content similarity, exact-place feedback and a contextual Bayesian score. When Supabase is configured, local feedback is merged with anonymous global priors.
 
 ## Feature vector
 
@@ -52,13 +52,13 @@ The script also builds a 600-phrase, 12-mood curated text benchmark and evaluate
 
 ## Online learning
 
-MoodTrip records **Good Pick** and **Not For Me** feedback locally. For each `mood × place-category` pair, the browser maintains a Beta posterior:
+MoodTrip records **Good Pick** and **Not For Me** immediately on-device and can persist the same anonymous events to Supabase. Every recommendation slate is also logged as an impression set for later ranking evaluation. For each `mood × place-category` pair, the browser maintains a Beta posterior:
 
 - positive feedback increments α
 - negative feedback increments β
 - posterior mean + a small exploration bonus becomes the contextual-bandit score
 
-This score immediately changes the ranking without retraining the offline model.
+This score immediately changes the ranking without retraining the offline model. Exact-place feedback adds a stronger item-level boost/demotion. See `ml/MODEL_CARD.md` and `ml/SUPABASE.md` for the global-learning and real-data retraining design.
 
 ## Reproduce
 
