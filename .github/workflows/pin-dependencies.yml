@@ -1,10 +1,7 @@
 name: Pin dependency versions
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - .github/workflows/pin-dependencies.yml
+  workflow_dispatch:
 
 permissions:
   contents: write
