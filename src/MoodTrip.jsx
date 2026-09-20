@@ -1407,7 +1407,7 @@ function App(){
   const googleSatelliteUrl=place=>'https://www.google.com/maps/@?api=1&map_action=map&center='+encodeURIComponent(place.lat+','+place.lng)+'&zoom=21&basemap=satellite';
   const googleStreetViewUrl=place=>'https://www.google.com/maps/@?api=1&map_action=pano&viewpoint='+encodeURIComponent(place.lat+','+place.lng);
 
-  return <main className="mtApp">
+  return <main className="mtApp" id="top">
     <motion.div className="mtScrollProgress" style={{scaleX:progress}}/>
     <header className="mtNav">
       <a className="mtWordmark" href="/moodtrip"><span>MT</span><b>MoodTrip</b></a>
@@ -1672,7 +1672,7 @@ function App(){
       </>:<div className="mtEmptyResults"><span>03</span><h3>Share a location, choose the mood, then run the pipeline.</h3><p>The page will query live nearby places rather than showing a fixed Jaipur demo list.</p></div>}
     </section>
 
-    <section className="mtDataScience">
+    <section className="mtDataScience" id="intelligence">
       <div className="mtSectionHead">
         <p className="mtEyebrow">04 / INTELLIGENCE STACK</p>
         <h2>More than a mood label.<br/><em>A connected decision system.</em></h2>
@@ -1806,9 +1806,36 @@ function App(){
     </section>
 
     <footer className="mtFooter">
-      <div><b>MT</b><span>MoodTrip</span></div>
-      <p>MOOD → LOCATION → VIBE → RANK → GO</p>
-      <a href="/">DIVYANSH SINGH / PORTFOLIO ↗</a>
+      <div className="mtFooterInner">
+        <div className="mtFooterBrand">
+          <b>MT</b>
+          <div>
+            <span>MoodTrip</span>
+            <small>MOOD → LOCATION → VIBE → RANK → GO</small>
+          </div>
+        </div>
+
+        <nav className="mtFooterLinks" aria-label="MoodTrip footer navigation">
+          <a href="/moodtrip">MoodTrip Home</a>
+          <a href="#planner">Planner</a>
+          <a href="#results">Results</a>
+          <a href="#intelligence">Intelligence</a>
+          <a href="#ml-benchmark">Evaluation</a>
+          <a href="/about">About Divyansh</a>
+          <a href="/faq">FAQ</a>
+          <a href="/privacy">Privacy</a>
+          <a href="/terms">Terms</a>
+          <a href="mailto:24DCS032@lnmiit.ac.in">Email ↗</a>
+          <a href="https://github.com/divbytes-prog" target="_blank" rel="noreferrer">GitHub ↗</a>
+          <a href="/">Portfolio ↗</a>
+          <a href="#top">Back to top ↑</a>
+        </nav>
+
+        <div className="mtFooterMeta">
+          <span>PERSONAL PROJECT / 2026</span>
+          <small>Built by Divyansh Singh</small>
+        </div>
+      </div>
     </footer>
 
     <AnimatePresence>
