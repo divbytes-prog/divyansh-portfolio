@@ -2845,3 +2845,127 @@ a{text-decoration:none}
     grid-template-columns:1fr;
   }
 }
+
+
+/* Compact single-line MoodTrip footer */
+.mtFooter{
+  min-height:0;
+  padding:0;
+  background:#1b1714;
+  color:#f1e9e3;
+  border-top:1px solid rgba(255,255,255,.12);
+}
+.mtFooterInner{
+  width:min(1440px,calc(100% - 48px));
+  min-height:88px;
+  margin:0 auto;
+  padding:0;
+  display:flex;
+  align-items:center;
+  gap:28px;
+}
+.mtFooterBrand{
+  flex:0 0 auto;
+  display:inline-flex;
+  align-items:center;
+  gap:10px;
+  color:#f6eee8;
+}
+.mtFooterBrand>b{
+  display:grid;
+  place-items:center;
+  width:36px;
+  height:36px;
+  border:1px solid rgba(255,255,255,.18);
+  font:600 15px/1 'Bricolage Grotesque',sans-serif;
+  letter-spacing:-.03em;
+  color:#d3a087;
+}
+.mtFooterBrand>span{
+  font:600 13px/1 'Bricolage Grotesque',sans-serif;
+  letter-spacing:-.02em;
+}
+.mtFooterLinks{
+  min-width:0;
+  flex:1 1 auto;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:18px;
+  white-space:nowrap;
+}
+.mtFooterLinks a{
+  position:relative;
+  flex:0 0 auto;
+  padding:9px 0;
+  font:500 10px/1 'IBM Plex Mono',monospace;
+  letter-spacing:.025em;
+  color:#bfb2aa;
+  transition:color .18s ease,transform .18s ease;
+}
+.mtFooterLinks a:after{
+  content:'';
+  position:absolute;
+  left:0;
+  right:0;
+  bottom:4px;
+  height:1px;
+  background:#d39a80;
+  transform:scaleX(0);
+  transform-origin:left;
+  transition:transform .18s ease;
+}
+.mtFooterLinks a:hover{
+  color:#fff;
+  transform:translateY(-1px);
+}
+.mtFooterLinks a:hover:after{transform:scaleX(1)}
+.mtFooterMeta{
+  flex:0 0 auto;
+  text-align:right;
+}
+.mtFooterMeta span{
+  font:500 8px/1 'IBM Plex Mono',monospace;
+  letter-spacing:.08em;
+  color:#766c66;
+  white-space:nowrap;
+}
+
+/* Keep one clean line on smaller screens by scrolling only the nav. */
+@media(max-width:1180px){
+  .mtFooterInner{
+    width:calc(100% - 32px);
+    gap:20px;
+  }
+  .mtFooterLinks{
+    justify-content:flex-start;
+    overflow-x:auto;
+    overflow-y:hidden;
+    scrollbar-width:none;
+    -webkit-overflow-scrolling:touch;
+  }
+  .mtFooterLinks::-webkit-scrollbar{display:none}
+  .mtFooterMeta{display:none}
+}
+@media(max-width:620px){
+  .mtFooterInner{
+    width:calc(100% - 24px);
+    min-height:74px;
+    gap:16px;
+  }
+  .mtFooterBrand>b{
+    width:32px;
+    height:32px;
+    font-size:13px;
+  }
+  .mtFooterBrand>span{
+    font-size:12px;
+  }
+  .mtFooterLinks{
+    gap:15px;
+  }
+  .mtFooterLinks a{
+    font-size:9px;
+    padding:10px 0;
+  }
+}
