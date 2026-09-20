@@ -21,42 +21,42 @@ const projects=[
     title:'Startup Funding Analyser',
     tags:'PYTHON · STREAMLIT · PANDAS · MATPLOTLIB',
     desc:'Interactive startup-funding analytics with overall funding metrics, month-over-month trends and investor-level analysis.',
-    href:'https://github.com/divbytes-prog/startup-funding-analyser'
+    href:'https://startup-funding-analyser.vercel.app/'
   },
   {
     n:'02',
     title:'India Data Visualization Dashboard',
     tags:'PYTHON · STREAMLIT · PLOTLY · DATA VIZ',
     desc:'District-level India dashboard with geospatial maps, state filters, KPI cards, comparisons and downloadable data.',
-    href:'https://github.com/divbytes-prog/dashboard'
+    href:'https://dashboard-liard-seven-19.vercel.app/'
   },
   {
     n:'03',
-    title:'File Explorer',
-    tags:'PYTHON · FLASK · HTML · CSS · JAVASCRIPT',
-    desc:'Web-based file and media explorer for browsing folders, playing videos, viewing PDFs, searching files and sharing through DropX.',
-    href:'https://github.com/divbytes-prog/File-Explorer'
+    title:'MoodTrip',
+    tags:'REACT · MACHINE LEARNING · LEAFLET · VERCEL',
+    desc:'Mood-aware place recommendations with live discovery, explainable ML ranking, group preferences and feedback-driven learning.',
+    href:'https://mood-trip-chi.vercel.app/'
   },
   {
     n:'04',
     title:'Career Assistant',
     tags:'REACT · TYPESCRIPT · TAILWIND · AI',
     desc:'Career-guidance platform with role exploration, salary and growth insights, learning roadmaps, search and an interactive chatbot.',
-    href:'https://github.com/divbytes-prog/launtennis'
+    href:'https://carrier-assistant.vercel.app/'
   },
   {
     n:'05',
     title:'QuickDine',
     tags:'REACT · TYPESCRIPT · EXPRESS · MONGODB',
     desc:'Full-stack restaurant discovery and table-booking platform with user, restaurant-owner and admin experiences.',
-    href:'https://github.com/divbytes-prog/QuickDine'
+    href:'https://quick-dine-zeta-one.vercel.app/'
   },
   {
     n:'06',
     title:'Hearthlog',
     tags:'REACT · EXPRESS · MONGODB · PRODUCT',
     desc:'A cozy life-RPG that turns everyday intentions into XP, attributes, streaks and rewards through a game-like progression loop.',
-    href:'https://github.com/divbytes-prog/hearthlog'
+    href:'https://hearthlog-web.vercel.app/'
   }
 ];
 
@@ -186,7 +186,7 @@ function TiltCard({project,index}){
     href={project.href}
     target="_blank"
     rel="noreferrer"
-    aria-label={project.title+', opens GitHub repository in new tab'}
+    aria-label={project.title+', opens live website in new tab'}
     initial={{opacity:0,y:55,scale:.9}}
     whileInView={{opacity:1,y:0,scale:1}}
     viewport={{once:true,amount:.18}}
@@ -203,7 +203,7 @@ function TiltCard({project,index}){
       <h3>{project.title}</h3>
       <p>{project.desc}</p>
     </div>
-    <div className="projectAction"><span>View repository</span><b>↗</b></div>
+    <div className="projectAction"><span>View live site</span><b>↗</b></div>
   </motion.a>
 }
 
