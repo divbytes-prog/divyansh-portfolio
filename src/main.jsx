@@ -600,13 +600,18 @@ function InfoHeader(){
 function InfoFooter(){
   return <footer className="infoFooter">
     <div className="shell infoFooterGrid">
-      <div><b>DS</b><span>Divyansh Singh</span></div>
+      <div><b>DS</b><div><span>Divyansh Singh</span><small>Computer Science · ML · Software</small></div></div>
       <nav aria-label="Footer pages">
         <a href="/">Home</a>
         <a href="/about">About</a>
+        <a href="/#work">Work</a>
+        <a href="/#stack">Stack</a>
         <a href="/faq">FAQ</a>
+        <a href="/#contact">Contact</a>
         <a href="/privacy">Privacy</a>
         <a href="/terms">Terms</a>
+        <a href="mailto:24DCS032@lnmiit.ac.in">Email ↗</a>
+        <a href="https://github.com/divbytes-prog" target="_blank" rel="noreferrer">GitHub ↗</a>
       </nav>
       <span>© 2026 · Jaipur, India</span>
     </div>
@@ -987,9 +992,28 @@ function App(){
     </div>
 
     <footer className="footer">
-      <div className="shell footerInner">
-        <Reveal><div className="footerBrand"><b>DS</b><span>Divyansh Singh</span></div></Reveal>
-        <div className="footerLinks"><MagneticLink href="#top">Back to top ↑</MagneticLink><a href="/about">About</a><a href="/faq">FAQ</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a><MagneticLink href="https://github.com/divbytes-prog" external>GitHub ↗</MagneticLink></div>
+      <div className="shell footerInner footerInnerFull">
+        <Reveal>
+          <div className="footerBrand footerBrandFull">
+            <b>DS</b>
+            <div><span>Divyansh Singh</span><small>Computer Science · ML · Software</small></div>
+          </div>
+        </Reveal>
+
+        <nav className="footerLinks footerLinksFull" aria-label="Footer navigation">
+          <a href="/">Home</a>
+          <a href="/about">About</a>
+          <a href="/#work">Work</a>
+          <a href="/#stack">Stack</a>
+          <a href="/faq">FAQ</a>
+          <a href="/#contact">Contact</a>
+          <a href="/privacy">Privacy</a>
+          <a href="/terms">Terms</a>
+          <a href="mailto:24DCS032@lnmiit.ac.in">Email ↗</a>
+          <a href="https://github.com/divbytes-prog" target="_blank" rel="noreferrer">GitHub ↗</a>
+          <a href="#top">Back to top ↑</a>
+        </nav>
+
         <span className="copyright">© 2026 · Jaipur, India</span>
       </div>
     </footer>
