@@ -2815,3 +2815,111 @@ a:focus-visible,button:focus-visible{outline:2px solid var(--clay);outline-offse
     grid-template-columns:1fr;
   }
 }
+
+
+/* Complete professional footer navigation */
+.footerInnerFull{
+  grid-template-columns:minmax(190px,.8fr) minmax(0,1.5fr) auto;
+  align-items:start;
+  min-height:190px;
+}
+.footerBrandFull{
+  align-items:flex-start;
+}
+.footerBrandFull>div{
+  display:grid;
+  gap:6px;
+}
+.footerBrandFull small,
+.infoFooterGrid>div small{
+  display:block;
+  font:500 8px/1.5 'IBM Plex Mono';
+  color:#8f847c;
+  letter-spacing:.04em;
+}
+.footerLinksFull{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:12px 24px;
+  justify-content:stretch;
+  align-content:start;
+}
+.footerLinksFull a{
+  width:max-content;
+  max-width:100%;
+  padding-bottom:5px;
+  border-bottom:1px solid transparent;
+}
+.footerLinksFull a:hover{
+  color:#fff;
+  border-bottom-color:#766a62;
+}
+.footerInnerFull .copyright{
+  align-self:end;
+}
+
+.infoFooterGrid{
+  grid-template-columns:minmax(190px,.8fr) minmax(0,1.5fr) auto;
+  align-items:start;
+}
+.infoFooterGrid>div{
+  align-items:flex-start;
+}
+.infoFooterGrid>div>div{
+  display:grid;
+  gap:6px;
+}
+.infoFooterGrid nav{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:12px 24px;
+  justify-content:stretch;
+}
+.infoFooterGrid nav a{
+  width:max-content;
+  max-width:100%;
+}
+.infoFooterGrid>span{
+  align-self:end;
+}
+
+@media(max-width:900px){
+  .footerInnerFull,
+  .infoFooterGrid{
+    grid-template-columns:1fr 1.4fr;
+    gap:30px;
+  }
+  .footerInnerFull .copyright,
+  .infoFooterGrid>span{
+    grid-column:1/-1;
+    text-align:left;
+  }
+  .footerLinksFull,
+  .infoFooterGrid nav{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
+
+@media(max-width:620px){
+  .footerInnerFull,
+  .infoFooterGrid{
+    grid-template-columns:1fr;
+    gap:26px;
+  }
+  .footerLinksFull,
+  .infoFooterGrid nav{
+    grid-template-columns:1fr 1fr;
+    gap:11px 18px;
+  }
+  .footerInnerFull .copyright,
+  .infoFooterGrid>span{
+    grid-column:auto;
+  }
+}
+
+@media(max-width:390px){
+  .footerLinksFull,
+  .infoFooterGrid nav{
+    grid-template-columns:1fr;
+  }
+}
