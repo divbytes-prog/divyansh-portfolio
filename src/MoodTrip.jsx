@@ -1254,19 +1254,54 @@ function App(){
       }
 
       const ranked=rankPlacesFast(raw||[],mood,vector);
-      setPlaces(ranked);
-      setSelectedId(ranked[0]?.id||null);
+      const recommendationId='rec-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8);
+      const rankedWithContext=ranked.map((place,index)=>({
+        ...place,
+        recommendationId,
+        rankPosition:index+1
+      }));
+      setPlaces(rankedWithContext);
+      setSelectedId(rankedWithContext[0]?.id||null);
       setForestState('neural');
       setSearchState('ready');
 
-      if(!ranked.length){
+      if(sessionId&&rankedWithContext.length){
+        apiJson('/api/feedback',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({
+            events:rankedWithContext.map(place=>({
+              eventType:'impression',
+              sessionId,
+              recommendationId,
+              rankPosition:place.rankPosition,
+              mood,
+              category:place.category,
+              placeId:String(place.id),
+              placeName:place.name,
+              modelScore:place.mlScore,
+              neuralScore:place.neuralScore,
+              distanceKm:place.distanceKm,
+              rating:place.rating,
+              groupMode:mode==='group',
+              rankFeatures:place.rankFeatures,
+              provider,
+              modelVersion:'distilled-nn-v1'
+            }))
+          })
+        },5000).then(d=>{
+          if(d.storage==='supabase')setFeedbackStorage(prev=>({...prev,mode:'global',degraded:false}));
+        }).catch(()=>{});
+      }
+
+      if(!rankedWithContext.length){
         setError('No suitable places were found in the fast search radius. Try another mood or a larger city area.');
       }
 
       const elapsed=Math.max(1,Math.round((performance.now()-started)/100)/10);
       setModelInfo(info=>({...info,lastSearchSeconds:elapsed}));
 
-      const entry={id:Date.now(),mood,mode,location:locationLabel||'Current area',count:ranked.length,time:new Date().toLocaleString()};
+      const entry={id:Date.now(),mood,mode,location:locationLabel||'Current area',count:rankedWithContext.length,time:new Date().toLocaleString()};
       const next=[entry,...history].slice(0,8);setHistory(next);
       try{localStorage.setItem('moodtrip-v2-history',JSON.stringify(next))}catch{}
       requestAnimationFrame(()=>document.getElementById('results')?.scrollIntoView({behavior:'smooth',block:'start'}));
@@ -1328,7 +1363,10 @@ function App(){
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body:JSON.stringify({
+          eventType:'feedback',
           sessionId,
+          recommendationId:place.recommendationId||('rec-'+Date.now().toString(36)),
+          rankPosition:place.rankPosition||null,
           mood:resultsMood,
           category:place.category,
           placeId:String(place.id),
