@@ -873,10 +873,20 @@ function InteractiveMap({center,places,selectedId,onSelect}){
   </div>;
 }
 
+function CinematicPanel({progress,range,children,className=''}) {
+  const opacity=useTransform(progress,[range[0],range[1],range[2],range[3]],[0,1,1,0]);
+  const y=useTransform(progress,[range[0],range[1],range[2],range[3]],[22,0,0,-22]);
+  return <motion.section className={'mtCinePanel '+className} style={{opacity,y}}>{children}</motion.section>;
+}
+
+
 function App(){
   const reduce=useReducedMotion();
   const {scrollYProgress}=useScroll();
   const progress=useSpring(scrollYProgress,{stiffness:100,damping:24,mass:.25});
+  const heroRef=useRef(null);
+  const {scrollYProgress:heroScroll}=useScroll({target:heroRef,offset:['start start','end end']});
+  const heroProgress=useSpring(heroScroll,{stiffness:95,damping:26,mass:.3});
 
   const [mode,setMode]=useState('solo');
   const [soloMood,setSoloMood]=useState('happy');
@@ -1409,38 +1419,64 @@ function App(){
 
   return <main className="mtApp">
     <motion.div className="mtScrollProgress" style={{scaleX:progress}}/>
-    <header className="mtNav">
-      <a className="mtWordmark" href="/moodtrip"><span>MT</span><b>MoodTrip</b></a>
-      <div className="mtNavMeta"><span>{locationState==='ready'?(locationLabel||'LOCATION LOCKED'):'LOCATION NOT SHARED'}</span><button onClick={()=>setHistoryOpen(true)}>HISTORY {String(history.length).padStart(2,'0')}</button></div>
-    </header>
+    <section className="mtCinematic" ref={heroRef} aria-label="MoodTrip introduction">
+      <div className="mtCineSticky">
+        <motion.i className="mtCineMeter" style={{scaleX:heroProgress}} aria-hidden="true"/>
 
-    <section className="mtHero">
-      {!reduce&&<motion.div className="mtHeroFx" initial={{opacity:0}} animate={{opacity:1}} transition={{duration:1.1}} aria-hidden="true">
-        <AeroShards
-          backgroundColor="#f2eee7" shardColor="#b69b8c" accentColor="#9a6654"
-          placement="full" flow="stream" material="pearl" detail="balanced"
-          scale={1} spread={1.1} depth={1} speed={.26} spin={.42}
-          interaction="repel" density={.58} shardSize={.72} turbulence={.56}
-          glow={.18} edgeSoftness={2} bloom={.1} grain={.025}
-          interactionRadius={1.15} interactionStrength={.2} rippleIntensity={.22}
-        />
-      </motion.div>}
-      <div className="mtHeroFxVeil" aria-hidden="true"/>
-      <div className="mtHeroBlock" aria-hidden="true"/>
-      <div className="mtHeroStudio" aria-hidden="true">MOOD<br/>PLACE<br/>GO</div>
-      <div className="mtMarginNote" aria-hidden="true">DISTANCE FIRST / REVIEWS SECOND</div>
+        <div className="mtCineStage" aria-hidden="true">
+          {!reduce&&<motion.div className="mtHeroFx mtCineFx" initial={{opacity:0}} animate={{opacity:1}} transition={{duration:1.1}}>
+            <AeroShards
+              backgroundColor="#f2f0ec" shardColor="#c4b7ae" accentColor="#9a6654"
+              placement="full" flow="stream" material="pearl" detail="balanced"
+              scale={1} spread={1.18} depth={1} speed={.2} spin={.34}
+              interaction="repel" density={.5} shardSize={.76} turbulence={.44}
+              glow={.12} edgeSoftness={2} bloom={.06} grain={.02}
+              interactionRadius={1.15} interactionStrength={.16} rippleIntensity={.18}
+            />
+          </motion.div>}
+          <div className="mtCineVeil"/>
+          <div className="mtCineGrain"/>
+        </div>
 
-      <div className="mtHeroCopy">
-        <p className="mtEyebrow">MOOD-BASED TRIP PLANNING / ML SYSTEM</p>
-        <h1>YOUR MOOD<br/><em>IS A QUERY.</em></h1>
-        <p className="mtLead">Tell MoodTrip how you feel. It reads the emotion, finds nearby places that fit the vibe, clusters them, predicts suitability, then ranks the shortlist by distance and review quality.</p>
-        <div className="mtHeroActions">
-          <button className="mtPrimaryAction" onClick={useMyLocation}>{locationState==='loading'?'LOCATING…':locationState==='ready'?'LOCATION READY ✓':'USE MY LOCATION ↗'}</button>
-          <a href="#planner">BUILD A MOOD PLAN ↓</a>
+        <header className="mtCineChrome">
+          <a className="mtCineMark" href="/moodtrip"><span aria-hidden="true">✦</span><b>MoodTrip</b></a>
+          <nav className="mtCineNav" aria-label="MoodTrip navigation">
+            <a href="#planner">Planner</a>
+            <a href="#results">Results</a>
+            <button className="mtCinePill" onClick={useMyLocation}>
+              {locationState==='loading'?'LOCATING…':locationState==='ready'?'LOCATION READY ✓':'USE MY LOCATION'}
+            </button>
+          </nav>
+        </header>
+
+        <div className="mtCinePanels">
+          <CinematicPanel progress={heroProgress} range={[0,0,.15,.23]} className="isFirst">
+            <p className="mtCineEyebrow">MOOD → PLACE / PERSONAL RECOMMENDATION SYSTEM</p>
+            <h1>Your mood<br/>is a <em>query.</em></h1>
+            <p className="mtCineSub">MoodTrip reads how you feel, understands the kind of place that fits, then searches your real surroundings instead of showing a fixed demo list.</p>
+            <div className="mtCineCta"><a className="mtCinePill" href="#planner">BUILD A MOOD PLAN</a></div>
+          </CinematicPanel>
+
+          <CinematicPanel progress={heroProgress} range={[.35,.43,.57,.65]}>
+            <p className="mtCineEyebrow">MODEL / CONTEXT / DISTANCE</p>
+            <h1>Nearby first.<br/><em>Vibe-aware always.</em></h1>
+            <p className="mtCineSub">A distilled neural ranker, content similarity and adaptive feedback work together while distance and review quality stay visible, practical signals.</p>
+            <div className="mtCineCta"><a className="mtCinePill" href="#planner">SEE THE INPUTS</a></div>
+          </CinematicPanel>
+
+          <CinematicPanel progress={heroProgress} range={[.77,.85,1,1]}>
+            <p className="mtCineEyebrow">EXPLAINABLE / LEARNING / LIVE MAPS</p>
+            <h1>Pick a place.<br/><em>Know why.</em></h1>
+            <p className="mtCineSub">Integrated Gradients explains the recommendation, Good Pick / Not For Me adapts future ranking, and live map layers keep the result grounded in the real world.</p>
+            <div className="mtCineCta"><a className="mtCinePill" href="#planner">START MOODTRIP</a></div>
+          </CinematicPanel>
+        </div>
+
+        <div className="mtCineFoot" aria-hidden="true">
+          <span>12 MOODS · 22 FEATURES · LIVE PLACE SEARCH</span>
+          <span>{locationState==='ready'?(locationLabel||'LOCATION LOCKED'):'LOCATION OPTIONAL UNTIL YOU SEARCH'}</span>
         </div>
       </div>
-
-      <LiveMoodSignal mood={activeMood} status={modelState}/>
     </section>
 
     <section className="mtTechStrip">
