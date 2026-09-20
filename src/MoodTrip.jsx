@@ -1287,7 +1287,7 @@ function App(){
         ['01','TRANSFORMER','deep emotion classification'],
         ['02','K-MEANS','unsupervised vibe clustering'],
         ['03','DISTILLED NN','learned recommendation scoring'],
-        ['04','BAYES BANDIT',feedback-driven adaptation']
+        ['04','BAYES BANDIT','feedback-driven adaptation']
       ].map(([n,a,b],i)=><motion.div key={a} initial={{opacity:0,y:18}} whileInView={{opacity:1,y:0}} viewport={{once:true}} transition={{delay:i*.06}}><span>{n}</span><b>{a}</b><small>{b}</small></motion.div>)}
     </section>
 
