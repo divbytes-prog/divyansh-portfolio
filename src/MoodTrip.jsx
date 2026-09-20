@@ -1807,33 +1807,28 @@ function App(){
 
     <footer className="mtFooter">
       <div className="mtFooterInner">
-        <div className="mtFooterBrand">
+        <a className="mtFooterBrand" href="/moodtrip" aria-label="MoodTrip home">
           <b>MT</b>
-          <div>
-            <span>MoodTrip</span>
-            <small>MOOD → LOCATION → VIBE → RANK → GO</small>
-          </div>
-        </div>
+          <span>MoodTrip</span>
+        </a>
 
         <nav className="mtFooterLinks" aria-label="MoodTrip footer navigation">
-          <a href="/moodtrip">MoodTrip Home</a>
           <a href="#planner">Planner</a>
           <a href="#results">Results</a>
           <a href="#intelligence">Intelligence</a>
           <a href="#ml-benchmark">Evaluation</a>
-          <a href="/about">About Divyansh</a>
+          <a href="/about">About</a>
           <a href="/faq">FAQ</a>
           <a href="/privacy">Privacy</a>
           <a href="/terms">Terms</a>
           <a href="mailto:24DCS032@lnmiit.ac.in">Email ↗</a>
           <a href="https://github.com/divbytes-prog" target="_blank" rel="noreferrer">GitHub ↗</a>
           <a href="/">Portfolio ↗</a>
-          <a href="#top">Back to top ↑</a>
+          <a href="#top">Top ↑</a>
         </nav>
 
         <div className="mtFooterMeta">
-          <span>PERSONAL PROJECT / 2026</span>
-          <small>Built by Divyansh Singh</small>
+          <span>© 2026 DIVYANSH SINGH</span>
         </div>
       </div>
     </footer>
