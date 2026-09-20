@@ -932,27 +932,6 @@ function App(){
   },[groupCount,soloMood]);
 
   useEffect(()=>{
-    let alive=true;
-    (async()=>{
-      try{
-        const d=await apiJson('/api/feedback?mood='+encodeURIComponent(activeMood),{},5000);
-        if(!alive)return;
-        setGlobalFeedback(d.feedback||{});
-        setFeedbackStorage({
-          mode:d.storage==='supabase'?'global':'local',
-          rows:Number(d.rows)||0,
-          degraded:Boolean(d.degraded)
-        });
-      }catch{
-        if(!alive)return;
-        setGlobalFeedback({});
-        setFeedbackStorage({mode:'local',rows:0,degraded:true});
-      }
-    })();
-    return()=>{alive=false};
-  },[activeMood]);
-
-  useEffect(()=>{
     if(!suggestOpen||manualCity.trim().length<2){
       setLocationSuggestions([]);
       if(manualCity.trim().length<2)setSuggestState('idle');
@@ -988,6 +967,28 @@ function App(){
   const activeVector=mode==='group'?groupVector:(MOOD_VECTORS[soloMood]||MOOD_VECTORS.happy);
   const activeCrowd=crowd==='any'?CROWD_DEFAULT[activeMood]:crowd;
   const adaptiveFeedback=useMemo(()=>mergeFeedbackMaps(globalFeedback,feedback),[globalFeedback,feedback]);
+
+  useEffect(()=>{
+    let alive=true;
+    (async()=>{
+      try{
+        const d=await apiJson('/api/feedback?mood='+encodeURIComponent(activeMood),{},5000);
+        if(!alive)return;
+        setGlobalFeedback(d.feedback||{});
+        setFeedbackStorage({
+          mode:d.storage==='supabase'?'global':'local',
+          rows:Number(d.rows)||0,
+          degraded:Boolean(d.degraded)
+        });
+      }catch{
+        if(!alive)return;
+        setGlobalFeedback({});
+        setFeedbackStorage({mode:'local',rows:0,degraded:true});
+      }
+    })();
+    return()=>{alive=false};
+  },[activeMood]);
+
   const selected=places.find(p=>p.id===selectedId)||places[0]||null;
   const feedbackSignals=useMemo(()=>totalFeedbackSignals(feedback),[feedback]);
   const globalFeedbackSignals=useMemo(()=>totalFeedbackSignals(globalFeedback),[globalFeedback]);
