@@ -2404,3 +2404,323 @@ a{text-decoration:none}
     min-height:84px;
   }
 }
+
+
+/* ============================================================
+   MOODTRIP INTELLIGENCE STACK
+   Replaces the old six-card feature grid with a connected model
+   story: one production core + one compact research index.
+   ============================================================ */
+.mtIntelShell{
+  display:grid;
+  grid-template-columns:minmax(0,1.18fr) minmax(360px,.82fr);
+  gap:22px;
+  margin-top:76px;
+  align-items:start;
+}
+
+.mtIntelCore{
+  position:relative;
+  overflow:hidden;
+  min-height:720px;
+  padding:28px;
+  border:1px solid #2c2521;
+  background:
+    linear-gradient(rgba(255,255,255,.024) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.024) 1px,transparent 1px),
+    radial-gradient(680px 360px at 85% 10%,rgba(154,102,84,.18),transparent 64%),
+    #1c1815;
+  background-size:42px 42px,42px 42px,auto,auto;
+  color:#f3ebe5;
+  box-shadow:18px 18px 0 rgba(154,102,84,.12);
+}
+.mtIntelCore:after{
+  content:'ML / 04';
+  position:absolute;
+  right:22px;
+  bottom:18px;
+  font:500 7px 'IBM Plex Mono';
+  letter-spacing:.16em;
+  color:rgba(243,235,229,.28);
+}
+.mtIntelTop{
+  display:flex;
+  justify-content:space-between;
+  gap:20px;
+  padding-bottom:18px;
+  border-bottom:1px solid rgba(255,255,255,.14);
+  font:500 8px 'IBM Plex Mono';
+  letter-spacing:.09em;
+}
+.mtIntelTop span{color:#d69a82}
+.mtIntelTop small{
+  font:inherit;
+  color:#9d918a;
+  text-align:right;
+}
+
+.mtIntelLead{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(260px,.7fr);
+  gap:36px;
+  align-items:end;
+  padding:46px 0 34px;
+}
+.mtIntelLead>div>span{
+  display:block;
+  margin-bottom:14px;
+  font:500 8px 'IBM Plex Mono';
+  letter-spacing:.1em;
+  color:#bd8771;
+}
+.mtIntelLead h3{
+  margin:0;
+  max-width:660px;
+  font-size:clamp(52px,5.2vw,82px);
+  line-height:.88;
+  letter-spacing:-.06em;
+  font-weight:600;
+}
+.mtIntelLead h3 em{
+  font-family:'Fraunces';
+  font-weight:400;
+  font-style:italic;
+  color:#d69a82;
+}
+.mtIntelLead>p{
+  margin:0;
+  max-width:420px;
+  color:#bdb0a8;
+  font-size:12px;
+  line-height:1.78;
+}
+
+.mtIntelMetrics{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  margin-bottom:34px;
+  border-top:1px solid rgba(255,255,255,.14);
+  border-bottom:1px solid rgba(255,255,255,.14);
+}
+.mtIntelMetrics>div{
+  min-width:0;
+  min-height:106px;
+  padding:16px 14px;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+  border-right:1px solid rgba(255,255,255,.12);
+}
+.mtIntelMetrics>div:last-child{border-right:0}
+.mtIntelMetrics strong{
+  font:400 42px/1 'Fraunces';
+  color:#f2ded4;
+}
+.mtIntelMetrics span{
+  font:500 7px/1.5 'IBM Plex Mono';
+  letter-spacing:.07em;
+  color:#8f837c;
+}
+
+.mtIntelFlow{
+  position:relative;
+  display:grid;
+  gap:0;
+  border-top:1px solid rgba(255,255,255,.14);
+}
+.mtIntelFlow:before{
+  content:'';
+  position:absolute;
+  left:17px;
+  top:22px;
+  bottom:22px;
+  width:1px;
+  background:linear-gradient(#b97f68,rgba(185,127,104,.08));
+}
+.mtIntelFlow>div{
+  position:relative;
+  min-height:72px;
+  display:grid;
+  grid-template-columns:36px 105px minmax(0,1fr);
+  align-items:center;
+  gap:14px;
+  border-bottom:1px solid rgba(255,255,255,.1);
+}
+.mtIntelFlow>div:last-child{border-bottom:0}
+.mtIntelFlow>div>span{
+  position:relative;
+  z-index:1;
+  width:34px;
+  height:34px;
+  display:grid;
+  place-items:center;
+  border:1px solid rgba(214,154,130,.34);
+  border-radius:50%;
+  background:#1c1815;
+  font:500 7px 'IBM Plex Mono';
+  color:#d69a82;
+}
+.mtIntelFlow>div>b{
+  font:500 9px 'IBM Plex Mono';
+  letter-spacing:.07em;
+  color:#f2e8e2;
+}
+.mtIntelFlow>div>small{
+  font-size:10px;
+  line-height:1.5;
+  color:#968a83;
+}
+
+.mtIntelRail{
+  border-top:1px solid var(--ink);
+}
+.mtIntelRow{
+  min-height:114px;
+  display:grid;
+  grid-template-columns:38px minmax(0,1fr) 22px;
+  gap:15px;
+  align-items:start;
+  padding:18px 4px;
+  border-bottom:1px solid var(--line);
+  transition:padding .22s ease,background .22s ease;
+}
+.mtIntelRow:hover{
+  padding-left:12px;
+  padding-right:12px;
+  background:rgba(154,102,84,.065);
+}
+.mtIntelRow>span{
+  padding-top:2px;
+  font:500 8px 'IBM Plex Mono';
+  color:var(--clay);
+}
+.mtIntelRow>div{min-width:0}
+.mtIntelRow b{
+  display:block;
+  font-size:20px;
+  letter-spacing:-.035em;
+}
+.mtIntelRow p{
+  max-width:520px;
+  margin:8px 0 0;
+  color:#706760;
+  font-size:11px;
+  line-height:1.6;
+}
+.mtIntelRow>i{
+  font-style:normal;
+  font-size:14px;
+  color:#a16b58;
+  transition:transform .22s ease;
+}
+.mtIntelRow:hover>i{transform:translate(3px,-3px)}
+
+@media(max-width:1050px){
+  .mtIntelShell{
+    grid-template-columns:1fr;
+  }
+  .mtIntelCore{
+    min-height:0;
+  }
+  .mtIntelRail{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    border-top:0;
+    border-left:1px solid var(--line);
+  }
+  .mtIntelRow{
+    min-height:132px;
+    border-top:1px solid var(--line);
+    border-right:1px solid var(--line);
+    padding:18px;
+  }
+  .mtIntelRow:hover{
+    padding:18px;
+  }
+}
+@media(max-width:760px){
+  .mtIntelShell{
+    margin-top:50px;
+    gap:18px;
+  }
+  .mtIntelCore{
+    padding:20px;
+    box-shadow:10px 10px 0 rgba(154,102,84,.1);
+  }
+  .mtIntelTop{
+    align-items:flex-start;
+    flex-direction:column;
+    gap:8px;
+  }
+  .mtIntelTop small{text-align:left}
+  .mtIntelLead{
+    grid-template-columns:1fr;
+    gap:20px;
+    padding:34px 0 26px;
+  }
+  .mtIntelLead h3{
+    font-size:clamp(42px,12vw,62px);
+  }
+  .mtIntelLead>p{
+    max-width:100%;
+  }
+  .mtIntelMetrics{
+    grid-template-columns:1fr 1fr;
+  }
+  .mtIntelMetrics>div{
+    min-height:90px;
+  }
+  .mtIntelMetrics>div:nth-child(2){
+    border-right:0;
+  }
+  .mtIntelMetrics>div:nth-child(-n+2){
+    border-bottom:1px solid rgba(255,255,255,.12);
+  }
+  .mtIntelFlow>div{
+    grid-template-columns:36px 82px minmax(0,1fr);
+    gap:10px;
+  }
+  .mtIntelRail{
+    grid-template-columns:1fr;
+    border-left:0;
+    border-top:1px solid var(--ink);
+  }
+  .mtIntelRow{
+    min-height:0;
+    grid-template-columns:34px minmax(0,1fr) 18px;
+    padding:16px 2px;
+    border-right:0;
+    border-top:0;
+  }
+  .mtIntelRow:hover{
+    padding:16px 2px;
+    background:transparent;
+  }
+  .mtIntelRow b{
+    font-size:18px;
+  }
+}
+@media(max-width:460px){
+  .mtIntelCore{
+    padding:16px;
+  }
+  .mtIntelLead h3{
+    font-size:clamp(38px,12vw,52px);
+  }
+  .mtIntelFlow>div{
+    grid-template-columns:34px minmax(0,1fr);
+    gap:10px 12px;
+    padding:10px 0;
+  }
+  .mtIntelFlow>div>b{
+    font-size:8px;
+  }
+  .mtIntelFlow>div>small{
+    grid-column:2;
+    margin-top:-7px;
+    padding-bottom:4px;
+  }
+  .mtIntelMetrics strong{
+    font-size:36px;
+  }
+}
