@@ -1450,7 +1450,7 @@ function App(){
         </header>
 
         <div className="mtCinePanels">
-          <CinematicPanel progress={heroProgress} range={[0,0,.15,.23]} className="isFirst">
+          <CinematicPanel progress={heroProgress} range={[0,.001,.15,.23]} className="isFirst">
             <p className="mtCineEyebrow">MOOD → PLACE / PERSONAL RECOMMENDATION SYSTEM</p>
             <h1>Your mood<br/>is a <em>query.</em></h1>
             <p className="mtCineSub">MoodTrip reads how you feel, understands the kind of place that fits, then searches your real surroundings instead of showing a fixed demo list.</p>
@@ -1464,7 +1464,7 @@ function App(){
             <div className="mtCineCta"><a className="mtCinePill" href="#planner">SEE THE INPUTS</a></div>
           </CinematicPanel>
 
-          <CinematicPanel progress={heroProgress} range={[.77,.85,1,1]}>
+          <CinematicPanel progress={heroProgress} range={[.77,.85,.98,1]}>
             <p className="mtCineEyebrow">EXPLAINABLE / LEARNING / LIVE MAPS</p>
             <h1>Pick a place.<br/><em>Know why.</em></h1>
             <p className="mtCineSub">Integrated Gradients explains the recommendation, Good Pick / Not For Me adapts future ranking, and live map layers keep the result grounded in the real world.</p>
