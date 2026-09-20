@@ -539,6 +539,50 @@ function AmbientField(){
   </div>;
 }
 
+
+function MobileProjectShowcase(){
+  const[active,setActive]=useState(0);
+  const project=resumeProjects[active];
+  return <section className="mobileProjectShowcase" aria-label="Featured project architecture">
+    <div className="mobileProjectTop">
+      <span>PROJECT / 03A</span>
+      <small>{project.n} / 06</small>
+    </div>
+
+    <div className="mobileProjectSelector" role="tablist" aria-label="Choose a project">
+      {resumeProjects.map((item,i)=><button
+        key={item.n}
+        type="button"
+        role="tab"
+        aria-selected={i===active}
+        className={i===active?'active':''}
+        onClick={()=>setActive(i)}
+      ><span>{item.n}</span><b>{item.title}</b></button>)}
+    </div>
+
+    <motion.article
+      key={project.n}
+      className="mobileProjectCard"
+      initial={{opacity:0,y:10}}
+      animate={{opacity:1,y:0}}
+      transition={{duration:.28,ease:[.16,1,.3,1]}}
+    >
+      <span className="mobileProjectKicker">LIVE PROJECT ARCHITECTURE</span>
+      <h3>{project.title}</h3>
+      <p>{project.summary}</p>
+
+      <div className="mobileProjectFlow">
+        <span>HOW IT WORKS</span>
+        <ol>
+          {project.flow.map((step,i)=><li key={step}><b>{String(i+1).padStart(2,'0')}</b><em>{step}</em></li>)}
+        </ol>
+      </div>
+
+      <div className="mobileProjectTech">{project.tech}</div>
+    </motion.article>
+  </section>;
+}
+
 function App(){
   const[menu,setMenu]=useState(false);
   const reduce=useReducedMotion();
@@ -685,13 +729,14 @@ function App(){
           <Reveal><div><p className="eyebrow">03 / SELECTED WORK</p><h2>Things I’ve <em>actually built.</em></h2></div></Reveal>
           <Reveal delay={.1}><MagneticLink className="textLink" href="https://github.com/divbytes-prog" external>All repositories ↗</MagneticLink></Reveal>
         </div>
-        <Reveal className="renderFeature">
+        <Reveal className="renderFeature desktopProjectViewer">
           <div className="renderFeatureCopy">
             <span>PROJECT / 03A</span>
             <p>Each project gets a live visual model that reflects what the project actually does.</p>
           </div>
           <RealtimeViewport/>
         </Reveal>
+        <MobileProjectShowcase/>
         <div className="projectGrid">{projects.map((project,i)=><TiltCard key={project.n} project={project} index={i}/>)}</div>
       </section>
 
