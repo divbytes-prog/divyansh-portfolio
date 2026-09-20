@@ -1958,7 +1958,7 @@ a{text-decoration:none}
 }
 .mtEvalStats{
   display:grid;
-  grid-template-columns:repeat(3,1fr);
+  grid-template-columns:repeat(4,1fr);
   border:1px solid var(--line);
   background:#e7ddd4;
 }
@@ -2123,7 +2123,7 @@ a{text-decoration:none}
 }
 @media(max-width:900px){
   .mtEvaluation{padding:100px 0}
-  .mtEvalStats{grid-template-columns:repeat(3,1fr)}
+  .mtEvalStats{grid-template-columns:repeat(2,1fr)}
 }
 @media(max-width:620px){
   .mtEvaluation{padding:86px 0}
