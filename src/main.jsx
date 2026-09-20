@@ -795,7 +795,7 @@ function App(){
         {menu?'CLOSE':'MENU'}
       </button>
       <div className="navlinks desktopNav">
-        <a href="#about">About</a><a href="#work">Work</a><a href="#stack">Stack</a><a href="#contact">Contact</a>
+        <a href="/about">About</a><a href="#work">Work</a><a href="#stack">Stack</a><a href="/faq">FAQ</a><a href="#contact">Contact</a>
         <MagneticLink className="navArrow" href="https://github.com/divbytes-prog" external>↗</MagneticLink>
       </div>
     </motion.nav>
@@ -809,11 +809,17 @@ function App(){
         exit={{opacity:0,clipPath:'circle(0% at 92% 7%)'}}
         transition={{duration:.55,ease:[.16,1,.3,1]}}
       >
-        {['about','work','stack','contact'].map((id,i)=>
-          <motion.a key={id} href={'#'+id} onClick={()=>setMenu(false)}
+        {[
+          ['About','/about'],
+          ['Work','#work'],
+          ['Stack','#stack'],
+          ['FAQ','/faq'],
+          ['Contact','#contact']
+        ].map(([label,href],i)=>
+          <motion.a key={label} href={href} onClick={()=>setMenu(false)}
             initial={{opacity:0,y:30}} animate={{opacity:1,y:0}}
             transition={{delay:.13+i*.07,duration:.45}}
-          >{id[0].toUpperCase()+id.slice(1)} <span>0{i+1}</span></motion.a>
+          >{label} <span>0{i+1}</span></motion.a>
         )}
         <motion.a href="https://github.com/divbytes-prog" target="_blank" rel="noreferrer" onClick={()=>setMenu(false)}
           initial={{opacity:0,y:30}} animate={{opacity:1,y:0}} transition={{delay:.43}}
