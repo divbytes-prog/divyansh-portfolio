@@ -2724,3 +2724,124 @@ a{text-decoration:none}
     font-size:36px;
   }
 }
+
+
+/* Complete MoodTrip footer */
+.mtFooter{
+  min-height:0;
+  padding:0;
+  display:block;
+  background:
+    radial-gradient(520px 220px at 12% 0,rgba(154,102,84,.16),transparent 72%),
+    var(--dark);
+  color:#eee7e1;
+  border-top:1px solid rgba(255,255,255,.1);
+}
+.mtFooterInner{
+  width:var(--shell);
+  min-height:210px;
+  margin:0 auto;
+  padding:40px 0;
+  display:grid;
+  grid-template-columns:minmax(210px,.82fr) minmax(0,1.55fr) auto;
+  gap:36px;
+  align-items:start;
+}
+.mtFooterBrand{
+  display:flex;
+  align-items:flex-start;
+  gap:12px;
+}
+.mtFooterBrand>b{
+  display:grid;
+  place-items:center;
+  width:42px;
+  height:42px;
+  border:1px solid rgba(255,255,255,.2);
+  font-size:20px;
+  color:#c9a58f;
+  font-weight:600;
+}
+.mtFooterBrand>div{
+  display:grid;
+  gap:7px;
+}
+.mtFooterBrand span{
+  font:500 11px 'IBM Plex Mono';
+  color:#f2e9e3;
+}
+.mtFooterBrand small{
+  max-width:220px;
+  font:500 7px/1.6 'IBM Plex Mono';
+  letter-spacing:.05em;
+  color:#8f847c;
+}
+
+.mtFooterLinks{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:12px 24px;
+  align-content:start;
+}
+.mtFooterLinks a{
+  width:max-content;
+  max-width:100%;
+  padding-bottom:5px;
+  border-bottom:1px solid transparent;
+  font:500 8px/1.4 'IBM Plex Mono';
+  letter-spacing:.035em;
+  color:#b8aca4;
+  transition:color .2s ease,border-color .2s ease,transform .2s ease;
+}
+.mtFooterLinks a:hover{
+  color:#fff;
+  border-bottom-color:#7b6d64;
+  transform:translateX(2px);
+}
+
+.mtFooterMeta{
+  align-self:end;
+  display:grid;
+  gap:7px;
+  text-align:right;
+}
+.mtFooterMeta span,
+.mtFooterMeta small{
+  font:500 7px/1.5 'IBM Plex Mono';
+  letter-spacing:.06em;
+}
+.mtFooterMeta span{color:#a89b93}
+.mtFooterMeta small{color:#756b65}
+
+@media(max-width:900px){
+  .mtFooterInner{
+    grid-template-columns:1fr 1.4fr;
+  }
+  .mtFooterMeta{
+    grid-column:1/-1;
+    text-align:left;
+  }
+  .mtFooterLinks{
+    grid-template-columns:1fr 1fr;
+  }
+}
+@media(max-width:620px){
+  .mtFooterInner{
+    min-height:0;
+    padding:32px 0;
+    grid-template-columns:1fr;
+    gap:28px;
+  }
+  .mtFooterLinks{
+    grid-template-columns:1fr 1fr;
+    gap:11px 18px;
+  }
+  .mtFooterMeta{
+    grid-column:auto;
+  }
+}
+@media(max-width:390px){
+  .mtFooterLinks{
+    grid-template-columns:1fr;
+  }
+}
