@@ -488,8 +488,8 @@ function normalizeKartaPhoto(item,target,index){
   },target);
 }
 
-async function kartaViewStreetImages(lat,lng,headers,radiusMeters=2500){
-  const radius=Math.max(500,Math.min(3000,Number(radiusMeters)||2500));
+async function kartaViewStreetImages(lat,lng,headers,radiusMeters=900){
+  const radius=Math.max(250,Math.min(1000,Number(radiusMeters)||900));
   const url='https://api.openstreetcam.org/2.0/photo/?lat='+encodeURIComponent(lat)+
     '&lng='+encodeURIComponent(lng)+
     '&radius='+encodeURIComponent(radius)+'&zoomLevel=18&join=sequence&orderBy=id&orderDirection=desc';
@@ -613,7 +613,7 @@ async function openStreetImagery(lat,lng,headers){
   const searchRadiusMeters=2500;
   const jobs=[
     ['panoramax',()=>panoramaxStreetImages(lat,lng,headers,searchRadiusMeters)],
-    ['kartaview',()=>kartaViewStreetImages(lat,lng,headers,searchRadiusMeters)]
+    ['kartaview',()=>kartaViewStreetImages(lat,lng,headers,900)]
   ];
 
   if(process.env.MAPILLARY_ACCESS_TOKEN||process.env.MAPILLARY_TOKEN){
