@@ -1467,7 +1467,7 @@ async function publicReviewSearch(name,address,lat,lng,headers){
   return all.slice(0,6);
 }
 
-export default async function handler(req,res){
+async function legacyHandler(req,res){
   if(req.method!=='GET')return send(res,405,{error:'Method not allowed'},0);
 
   const action=String(req.query.action||'');
@@ -1653,3 +1653,30 @@ export default async function handler(req,res){
     return send(res,502,{error:'The map service did not respond quickly enough. Please retry.'},0);
   }
 }
+
+function createWebResponseAdapter(){
+  let statusCode=200;
+  const headers=new Headers();
+  let body='';
+
+  return {
+    status(code){statusCode=Number(code)||200;return this},
+    setHeader(name,value){headers.set(String(name),String(value));return this},
+    end(value=''){
+      body=value==null?'':value;
+      return new Response(body,{status:statusCode,headers});
+    },
+    toResponse(){return new Response(body,{status:statusCode,headers})}
+  };
+}
+
+export default {
+  async fetch(request){
+    const url=new URL(request.url);
+    const query=Object.fromEntries(url.searchParams.entries());
+    const response=createWebResponseAdapter();
+    const result=await legacyHandler({method:request.method,query},response);
+    return result instanceof Response?result:response.toResponse();
+  }
+};
+
