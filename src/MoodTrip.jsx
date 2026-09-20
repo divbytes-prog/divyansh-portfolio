@@ -1674,18 +1674,81 @@ function App(){
 
     <section className="mtDataScience">
       <div className="mtSectionHead">
-        <p className="mtEyebrow">04 / DATA SCIENCE LAYER</p>
-        <h2>The app gets better<br/><em>than “happy = café.”</em></h2>
+        <p className="mtEyebrow">04 / INTELLIGENCE STACK</p>
+        <h2>More than a mood label.<br/><em>A connected decision system.</em></h2>
       </div>
-      <div className="mtDSGrid">
-        {[
-          ['A','DEEP EMOTION','A quantized RoBERTa emotion model runs on demand for richer text emotion inference, while explicit mood selection remains available.'],
-          ['B','DISTILLED NEURAL RANKER','A 22-feature browser MLP is distilled from a teacher ensemble trained with Random Forest, XGBoost and a larger neural recommender.'],
-          ['C','UNSUPERVISED VIBES','K-Means groups nearby candidates by atmosphere features before supervised ranking, giving the system a real unsupervised representation layer.'],
-          ['D','CONTEXTUAL FEATURES','Mood vector, place vector, normalized distance, rating, crowd fit, group state and cyclic time features all enter the learned ranker.'],
-          ['E','BAYESIAN FEEDBACK','Good Pick / Not For Me signals update a mood×category Beta posterior. The posterior immediately changes ranking on this device.'],
-          ['F','EVALUATION HARNESS','Rule-based, content-based, Random Forest, XGBoost, neural and distilled models are compared with Precision@5, Recall@5, NDCG@5, MAE and latency.']
-        ].map(([n,t,p],i)=><PopWindow key={t} className="mtDSCard" delay={i*.04}><span>{n}</span><h3>{t}</h3><p>{p}</p></PopWindow>)}
+
+      <div className="mtIntelShell">
+        <motion.article
+          className="mtIntelCore"
+          initial={{opacity:0,y:28}}
+          whileInView={{opacity:1,y:0}}
+          viewport={{once:true,amount:.2}}
+          transition={{duration:.65,ease:[.16,1,.3,1]}}
+        >
+          <div className="mtIntelTop">
+            <span>PRODUCTION INTELLIGENCE</span>
+            <small>MOOD → CONTEXT → RANK → LEARN</small>
+          </div>
+
+          <div className="mtIntelLead">
+            <div>
+              <span>THE DECISION ENGINE</span>
+              <h3>Emotion in.<br/><em>Useful place out.</em></h3>
+            </div>
+            <p>MoodTrip combines language understanding, unsupervised place representations, contextual ranking and feedback adaptation. Each layer changes the same final decision instead of living as a separate demo model.</p>
+          </div>
+
+          <div className="mtIntelMetrics">
+            <div><strong>12</strong><span>MOODS</span></div>
+            <div><strong>22</strong><span>RANK FEATURES</span></div>
+            <div><strong>3</strong><span>TEACHER MODELS</span></div>
+            <div><strong>1</strong><span>LIVE RANKER</span></div>
+          </div>
+
+          <div className="mtIntelFlow">
+            {[
+              ['01','READ','RoBERTa emotion signal'],
+              ['02','REPRESENT','K-Means place vibes'],
+              ['03','CONTEXT','distance · rating · crowd · time'],
+              ['04','RANK','distilled 16×8 MLP'],
+              ['05','ADAPT','Bayesian preference feedback'],
+              ['06','VERIFY','NDCG · Recall · MAE · latency']
+            ].map(([n,t,p],i)=><motion.div
+              key={t}
+              initial={{opacity:0,x:-16}}
+              whileInView={{opacity:1,x:0}}
+              viewport={{once:true}}
+              transition={{delay:i*.055,duration:.42}}
+            >
+              <span>{n}</span>
+              <b>{t}</b>
+              <small>{p}</small>
+            </motion.div>)}
+          </div>
+        </motion.article>
+
+        <div className="mtIntelRail">
+          {[
+            ['A','DEEP EMOTION','On-demand transformer inference adds richer text understanding without blocking the fast path.'],
+            ['B','NEURAL RANKER','A distilled browser MLP turns 22 contextual features into a production suitability score.'],
+            ['C','PLACE VIBES','K-Means gives nearby candidates an unsupervised atmosphere representation before ranking.'],
+            ['D','CONTEXT','Mood, distance, rating, crowd fit, group state and cyclic time all affect the same prediction.'],
+            ['E','FEEDBACK','Good Pick / Not For Me updates preference posteriors and changes future ranking immediately.'],
+            ['F','EVALUATION','Rule, content, tree, boosted and neural models are measured before the distilled model is shipped.']
+          ].map(([n,t,p],i)=><motion.div
+            className="mtIntelRow"
+            key={t}
+            initial={{opacity:0,y:18}}
+            whileInView={{opacity:1,y:0}}
+            viewport={{once:true,amount:.35}}
+            transition={{delay:i*.045,duration:.4}}
+          >
+            <span>{n}</span>
+            <div><b>{t}</b><p>{p}</p></div>
+            <i>↗</i>
+          </motion.div>)}
+        </div>
       </div>
     </section>
 
