@@ -1,0 +1,42 @@
+name: Pin dependency versions
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/pin-dependencies.yml
+
+permissions:
+  contents: write
+
+jobs:
+  pin:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Resolve exact production dependencies
+        run: |
+          npm install --save-exact             @vitejs/plugin-react@latest             vite@latest             react@latest             react-dom@latest             motion@latest             react-icons@latest             vgpu@0.3.1             @huggingface/transformers@latest             leaflet@latest
+
+      - name: Add exact test dependencies
+        run: npm install --save-dev --save-exact vitest@latest @playwright/test@latest
+
+      - name: Add test scripts
+        run: |
+          npm pkg set scripts.test="vitest run"
+          npm pkg set scripts.test:e2e="npm run build && playwright test"
+
+      - name: Commit package lock
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json
+          git diff --cached --quiet || git commit -m "Pin dependencies and add test toolchain"
+          git push
