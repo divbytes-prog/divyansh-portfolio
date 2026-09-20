@@ -2294,3 +2294,524 @@ a:focus-visible,button:focus-visible{outline:2px solid var(--clay);outline-offse
     min-height:43px;
   }
 }
+
+
+/* ============================================================
+   PROFESSIONAL SITE PAGES
+   About / FAQ / Privacy / Terms / 404
+   ============================================================ */
+
+.infoPage{
+  min-height:100vh;
+  background:var(--bone);
+  color:var(--ink);
+}
+.infoHeader{
+  position:sticky;
+  top:0;
+  z-index:70;
+  background:rgba(242,238,231,.92);
+  backdrop-filter:blur(14px);
+  -webkit-backdrop-filter:blur(14px);
+  border-bottom:1px solid rgba(23,20,17,.14);
+}
+.infoHeaderInner{
+  min-height:72px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:28px;
+}
+.infoHeader nav{
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:22px;
+  font:500 9px 'IBM Plex Mono';
+  letter-spacing:.06em;
+  color:#5f5751;
+}
+.infoHeader nav a{
+  padding:9px 0;
+  border-bottom:1px solid transparent;
+}
+.infoHeader nav a:hover{
+  color:#000;
+  border-bottom-color:#91847a;
+}
+
+.infoHero{
+  padding:110px 0 92px;
+  border-bottom:1px solid var(--line);
+}
+.infoHero h1{
+  max-width:1120px;
+  margin:24px 0 0;
+  font-size:clamp(58px,8vw,118px);
+  line-height:.86;
+  letter-spacing:-.065em;
+  font-weight:600;
+}
+.infoHero h1 em{
+  display:inline;
+  font-family:'Fraunces',serif;
+  font-weight:300;
+  font-style:italic;
+  color:var(--clay);
+}
+.infoHero>p:last-child{
+  max-width:760px;
+  margin:34px 0 0;
+  color:var(--muted);
+  font-size:17px;
+  line-height:1.75;
+}
+.infoBody{
+  padding:88px 0 110px;
+}
+
+/* About */
+.aboutPortraitBlock{
+  display:grid;
+  grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);
+  gap:clamp(40px,7vw,100px);
+  align-items:center;
+}
+.aboutPortraitBlock figure{
+  position:relative;
+  margin:0;
+  isolation:isolate;
+}
+.aboutPortraitBlock figure:before{
+  content:'';
+  position:absolute;
+  inset:18px -18px -18px 18px;
+  background:var(--clay);
+  opacity:.16;
+  z-index:-1;
+}
+.aboutPortraitBlock img{
+  display:block;
+  width:100%;
+  aspect-ratio:707/556;
+  object-fit:cover;
+  border:1px solid #baa99d;
+}
+.aboutPortraitBlock figcaption{
+  position:absolute;
+  left:16px;
+  right:16px;
+  bottom:16px;
+  display:flex;
+  justify-content:space-between;
+  gap:16px;
+  padding:11px 12px;
+  background:rgba(23,20,17,.78);
+  color:#fff;
+  backdrop-filter:blur(5px);
+  -webkit-backdrop-filter:blur(5px);
+  font:500 8px 'IBM Plex Mono';
+  letter-spacing:.08em;
+}
+.aboutPortraitBlock figcaption b{
+  color:#e6c8b8;
+  font-weight:500;
+  text-align:right;
+}
+.aboutPortraitBlock>div h2,
+.aboutNow h2,
+.faqContact h2{
+  margin:18px 0 20px;
+  font-size:clamp(42px,5vw,72px);
+  line-height:.94;
+  letter-spacing:-.055em;
+}
+.aboutPortraitBlock>div>p:not(.eyebrow){
+  max-width:620px;
+  margin:0 0 18px;
+  color:var(--muted);
+  font-size:16px;
+  line-height:1.8;
+}
+.aboutPrinciples{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  margin-top:100px;
+  border-top:1px solid var(--line);
+}
+.aboutPrinciples article{
+  min-height:250px;
+  padding:24px;
+  border-right:1px solid var(--line);
+  border-bottom:1px solid var(--line);
+  background:var(--paper);
+}
+.aboutPrinciples article:nth-child(2){background:#ebe3db}
+.aboutPrinciples article:nth-child(3){background:#f4eee7}
+.aboutPrinciples article:nth-child(4){background:var(--sage)}
+.aboutPrinciples article:last-child{border-right:0}
+.aboutPrinciples span{
+  font:500 8px 'IBM Plex Mono';
+  color:var(--clay);
+}
+.aboutPrinciples h3{
+  margin:54px 0 12px;
+  font-size:28px;
+  letter-spacing:-.04em;
+}
+.aboutPrinciples p{
+  margin:0;
+  color:#615952;
+  font-size:13px;
+  line-height:1.7;
+}
+.aboutNow{
+  display:grid;
+  grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);
+  gap:70px;
+  margin-top:100px;
+  padding-top:36px;
+  border-top:1px solid var(--line);
+}
+.aboutNow>div:last-child p{
+  max-width:640px;
+  margin:0 0 22px;
+  color:var(--muted);
+  font-size:16px;
+  line-height:1.8;
+}
+
+/* FAQ */
+.faqList{
+  border-top:1px solid var(--ink);
+}
+.faqList details{
+  border-bottom:1px solid var(--line);
+}
+.faqList summary{
+  list-style:none;
+  min-height:92px;
+  display:grid;
+  grid-template-columns:56px minmax(0,1fr) 34px;
+  align-items:center;
+  gap:18px;
+  cursor:pointer;
+  padding:0 4px;
+}
+.faqList summary::-webkit-details-marker{display:none}
+.faqList summary span{
+  font:500 9px 'IBM Plex Mono';
+  color:var(--clay);
+}
+.faqList summary b{
+  font-size:clamp(20px,2.2vw,30px);
+  letter-spacing:-.035em;
+  font-weight:600;
+}
+.faqList summary i{
+  justify-self:end;
+  font-size:22px;
+  font-style:normal;
+  color:var(--clay);
+  transition:transform .25s ease;
+}
+.faqList details[open] summary i{
+  transform:rotate(45deg);
+}
+.faqList details p{
+  max-width:780px;
+  margin:0 0 28px 74px;
+  color:var(--muted);
+  font-size:15px;
+  line-height:1.8;
+}
+.faqContact{
+  margin-top:90px;
+  padding:44px;
+  background:var(--clay);
+  color:white;
+}
+.faqContact .eyebrow{color:#eadbd2}
+.faqContact h2{
+  max-width:780px;
+  margin-bottom:30px;
+}
+.faqContact .button.primary{
+  background:var(--ink);
+  border-color:var(--ink);
+}
+
+/* Legal / policy pages */
+.legalGrid{
+  display:grid;
+  grid-template-columns:210px minmax(0,1fr);
+  gap:80px;
+  align-items:start;
+}
+.legalGrid aside{
+  position:sticky;
+  top:104px;
+  display:grid;
+  gap:0;
+  border-top:1px solid var(--line);
+}
+.legalGrid aside>span{
+  padding:15px 0;
+  font:500 8px 'IBM Plex Mono';
+  letter-spacing:.1em;
+  color:var(--clay);
+  border-bottom:1px solid var(--line);
+}
+.legalGrid aside a{
+  padding:12px 0;
+  border-bottom:1px solid var(--line);
+  font-size:12px;
+  color:#655d57;
+}
+.legalGrid aside a:hover{color:#000}
+.legalCopy{
+  max-width:860px;
+}
+.legalCopy section{
+  position:relative;
+  padding:0 0 52px 68px;
+  margin-bottom:46px;
+  border-bottom:1px solid var(--line);
+}
+.legalCopy section:last-child{margin-bottom:0}
+.legalCopy section>span{
+  position:absolute;
+  left:0;
+  top:8px;
+  font:500 9px 'IBM Plex Mono';
+  color:var(--clay);
+}
+.legalCopy h2{
+  margin:0 0 18px;
+  font-size:clamp(30px,3.4vw,46px);
+  letter-spacing:-.045em;
+}
+.legalCopy p{
+  margin:0;
+  color:var(--muted);
+  font-size:15px;
+  line-height:1.85;
+}
+.legalCopy p a{
+  color:var(--clay-deep);
+  border-bottom:1px solid currentColor;
+}
+
+/* 404 */
+.notFoundActions{
+  min-height:240px;
+  display:flex;
+  flex-wrap:wrap;
+  align-items:flex-start;
+  gap:18px;
+}
+
+/* Secondary footer */
+.infoFooter{
+  background:var(--dark);
+  color:#eee7e1;
+  border-top:1px solid rgba(255,255,255,.12);
+}
+.infoFooterGrid{
+  min-height:170px;
+  padding:38px 0;
+  display:grid;
+  grid-template-columns:1fr auto 1fr;
+  gap:30px;
+  align-items:end;
+}
+.infoFooterGrid>div{
+  display:flex;
+  align-items:center;
+  gap:11px;
+  font:500 10px 'IBM Plex Mono';
+}
+.infoFooterGrid>div b{
+  font-size:24px;
+  color:#c9a58f;
+}
+.infoFooterGrid nav{
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:center;
+  gap:18px;
+  font:500 9px 'IBM Plex Mono';
+  color:#b3a79e;
+}
+.infoFooterGrid>span{
+  text-align:right;
+  font:500 9px 'IBM Plex Mono';
+  color:#887e77;
+}
+
+/* Main footer now has more links. */
+.footerLinks{
+  flex-wrap:wrap;
+  justify-content:center;
+}
+
+@media(max-width:900px){
+  .infoHero{
+    padding-top:88px;
+  }
+  .aboutPortraitBlock,
+  .aboutNow{
+    grid-template-columns:1fr;
+    gap:42px;
+  }
+  .aboutPortraitBlock figure{
+    width:min(100%,620px);
+  }
+  .aboutPrinciples{
+    grid-template-columns:1fr 1fr;
+  }
+  .aboutPrinciples article:nth-child(2){
+    border-right:0;
+  }
+  .legalGrid{
+    grid-template-columns:1fr;
+    gap:44px;
+  }
+  .legalGrid aside{
+    position:relative;
+    top:auto;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    border-left:1px solid var(--line);
+  }
+  .legalGrid aside>span{
+    grid-column:1/-1;
+    padding-left:12px;
+  }
+  .legalGrid aside a{
+    padding:12px;
+    border-right:1px solid var(--line);
+  }
+  .infoFooterGrid{
+    grid-template-columns:1fr 1fr;
+  }
+  .infoFooterGrid nav{
+    justify-content:flex-end;
+  }
+  .infoFooterGrid>span{
+    grid-column:1/-1;
+    text-align:left;
+  }
+}
+
+@media(max-width:620px){
+  .infoHeaderInner{
+    min-height:64px;
+  }
+  .infoHeader nav{
+    gap:12px;
+    font-size:8px;
+  }
+  .infoHeader nav a:nth-child(2){
+    display:none;
+  }
+  .infoHero{
+    padding:70px 0 62px;
+  }
+  .infoHero h1{
+    font-size:clamp(46px,14vw,72px);
+    line-height:.9;
+  }
+  .infoHero>p:last-child{
+    margin-top:25px;
+    font-size:15px;
+  }
+  .infoBody{
+    padding:62px 0 82px;
+  }
+  .aboutPortraitBlock figcaption{
+    left:10px;
+    right:10px;
+    bottom:10px;
+    flex-direction:column;
+    align-items:flex-start;
+  }
+  .aboutPortraitBlock figcaption b{
+    text-align:left;
+  }
+  .aboutPortraitBlock>div h2,
+  .aboutNow h2,
+  .faqContact h2{
+    font-size:40px;
+  }
+  .aboutPortraitBlock>div>p:not(.eyebrow),
+  .aboutNow>div:last-child p{
+    font-size:15px;
+  }
+  .aboutPrinciples{
+    grid-template-columns:1fr;
+    margin-top:64px;
+  }
+  .aboutPrinciples article{
+    min-height:190px;
+    border-right:0;
+    padding:20px;
+  }
+  .aboutPrinciples h3{
+    margin-top:38px;
+  }
+  .aboutNow{
+    margin-top:70px;
+    padding-top:28px;
+  }
+  .faqList summary{
+    min-height:78px;
+    grid-template-columns:34px minmax(0,1fr) 24px;
+    gap:10px;
+  }
+  .faqList summary b{
+    font-size:19px;
+  }
+  .faqList details p{
+    margin-left:44px;
+    font-size:14px;
+  }
+  .faqContact{
+    margin-top:62px;
+    padding:28px 22px;
+  }
+  .legalGrid aside{
+    grid-template-columns:1fr 1fr;
+  }
+  .legalCopy section{
+    padding:0 0 40px 42px;
+    margin-bottom:36px;
+  }
+  .legalCopy h2{
+    font-size:30px;
+  }
+  .legalCopy p{
+    font-size:14px;
+  }
+  .infoFooterGrid{
+    min-height:0;
+    grid-template-columns:1fr;
+    align-items:start;
+    gap:22px;
+    padding:30px 0;
+  }
+  .infoFooterGrid nav{
+    justify-content:flex-start;
+  }
+  .infoFooterGrid>span{
+    grid-column:auto;
+  }
+}
+
+@media(max-width:390px){
+  .infoHeader nav a:nth-child(3){
+    display:none;
+  }
+  .legalGrid aside{
+    grid-template-columns:1fr;
+  }
+}
