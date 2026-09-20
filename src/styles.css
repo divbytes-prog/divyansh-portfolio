@@ -2114,216 +2114,183 @@ a:focus-visible,button:focus-visible{outline:2px solid var(--clay);outline-offse
 
 
 /* ============================================================
-   MOBILE PROJECT VIEWER — STACKED, ZERO-OVERLAP LAYOUT
+   DEDICATED MOBILE PROJECT SHOWCASE
+   Desktop keeps the live architecture viewer; phones get a
+   purpose-built layout with no absolute-position collisions.
    ============================================================ */
-@media(max-width:600px){
-  .renderFeature{
+.mobileProjectShowcase{display:none}
+
+@media(max-width:760px){
+  .desktopProjectViewer{display:none!important}
+  .mobileProjectShowcase{
     display:block;
     width:100%;
-    margin:42px 0 24px;
-  }
-
-  .renderFeatureCopy{
-    display:block;
-    margin-bottom:16px;
-  }
-
-  .renderFeatureCopy span{
-    display:block;
-    margin-bottom:7px;
-  }
-
-  .renderFeatureCopy p{
-    max-width:34ch;
-    margin:0;
-    text-align:left;
-  }
-
-  .renderViewport:not(.compact){
-    display:flex;
-    flex-direction:column;
-    width:100%;
-    min-height:0;
-    aspect-ratio:auto;
+    margin:44px 0 26px;
+    border:1px solid #6f625a;
+    background:#1f1a17;
+    color:#f3eae4;
     overflow:hidden;
-    background:#211b18;
   }
 
-  .renderViewport:not(.compact) canvas{
-    position:relative;
-    flex:0 0 auto;
-    width:100%!important;
-    height:220px!important;
-    min-height:220px;
-    display:block;
-  }
-
-  .renderViewport:not(.compact)::after,
-  .renderViewport:not(.compact) .renderHud{
-    display:none;
-  }
-
-  .projectArchitecture{
-    position:relative;
-    inset:auto;
-    left:auto;
-    right:auto;
-    top:auto;
-    width:100%;
-    padding:18px 16px 14px;
-    border-top:1px solid rgba(242,238,231,.14);
-    pointer-events:none;
-  }
-
-  .projectArchitecture>span{
-    margin:0 0 12px;
-    font-size:8px;
-  }
-
-  .projectArchitecture>div{
+  .mobileProjectTop{
+    min-height:48px;
+    padding:0 14px;
     display:flex;
-    flex-direction:column;
-    align-items:stretch;
+    align-items:center;
+    justify-content:space-between;
+    gap:14px;
+    border-bottom:1px solid rgba(242,238,231,.14);
+    font:500 8px 'IBM Plex Mono';
+    letter-spacing:.1em;
+    color:#cbbdb5;
+  }
+  .mobileProjectTop span{color:#c28d76}
+  .mobileProjectTop small{font:inherit}
+
+  .mobileProjectSelector{
+    display:flex;
     gap:0;
-    padding-top:0;
-    border-top:0;
-  }
-
-  .projectArchitecture b{
-    position:relative;
-    display:block;
     width:100%;
-    padding:10px 12px 10px 28px;
-    border-top:1px solid rgba(242,238,231,.11);
-    font-size:8px;
-    line-height:1.4;
-    text-align:left;
-    color:#ddd0c7;
-    overflow-wrap:anywhere;
+    overflow-x:auto;
+    overflow-y:hidden;
+    scrollbar-width:none;
+    border-bottom:1px solid rgba(242,238,231,.14);
+    background:#191512;
+    scroll-snap-type:x proximity;
   }
-
-  .projectArchitecture b:before{
-    content:'→';
-    position:absolute;
-    left:8px;
-    top:10px;
+  .mobileProjectSelector::-webkit-scrollbar{display:none}
+  .mobileProjectSelector button{
+    flex:0 0 min(74vw,270px);
+    min-width:0;
+    min-height:64px;
+    padding:11px 13px;
+    display:grid;
+    grid-template-columns:28px minmax(0,1fr);
+    align-items:center;
+    gap:9px;
+    scroll-snap-align:start;
+    border:0;
+    border-right:1px solid rgba(242,238,231,.1);
+    background:transparent;
+    color:#9f938c;
+    text-align:left;
+  }
+  .mobileProjectSelector button:last-child{border-right:0}
+  .mobileProjectSelector button.active{
+    background:#3a2c26;
+    color:#fff;
+    box-shadow:inset 0 -3px 0 #c28d76;
+  }
+  .mobileProjectSelector span{
+    font:500 8px 'IBM Plex Mono';
     color:#b87d68;
   }
-
-  .projectArchitecture i{
-    display:none;
-  }
-
-  .projectStreamCard{
-    position:relative;
-    inset:auto;
-    left:auto;
-    right:auto;
-    top:auto;
-    bottom:auto;
-    width:100%;
-    max-width:none;
-    padding:22px 16px 20px;
-    border-top:1px solid rgba(242,238,231,.14);
-    pointer-events:none;
-  }
-
-  .projectStreamIndex{
-    margin-bottom:8px;
-    font-size:8px;
-  }
-
-  .projectStreamCard h3{
-    max-width:100%;
-    margin:0;
-    font-size:clamp(25px,8vw,32px);
-    line-height:1;
-  }
-
-  .projectStreamCard p{
-    max-width:100%;
-    margin:12px 0 11px;
-    font-size:13px;
-    line-height:1.55;
-  }
-
-  .projectStreamCard b,
-  .projectStreamCard small{
-    max-width:100%;
-    font-size:8px;
-    line-height:1.55;
+  .mobileProjectSelector b{
+    min-width:0;
+    font:500 10px/1.25 'IBM Plex Mono';
     overflow-wrap:anywhere;
   }
 
-  .projectStreamTabs{
-    position:relative;
-    inset:auto;
-    left:auto;
-    right:auto;
-    top:auto;
-    bottom:auto;
-    width:100%;
-    max-height:none;
+  .mobileProjectCard{
+    padding:24px 16px 18px;
+  }
+  .mobileProjectKicker{
+    display:block;
+    margin-bottom:12px;
+    font:500 8px 'IBM Plex Mono';
+    letter-spacing:.11em;
+    color:#c28d76;
+  }
+  .mobileProjectCard h3{
+    margin:0;
+    max-width:15ch;
+    font:500 clamp(30px,10vw,46px)/.94 'Bricolage Grotesque',sans-serif;
+    letter-spacing:-.05em;
+    color:#f5ece6;
+    overflow-wrap:anywhere;
+  }
+  .mobileProjectCard>p{
+    max-width:42ch;
+    margin:16px 0 22px;
+    font-size:14px;
+    line-height:1.62;
+    color:#c9bdb6;
+  }
+
+  .mobileProjectFlow{
+    margin-top:4px;
+    border-top:1px solid rgba(242,238,231,.15);
+  }
+  .mobileProjectFlow>span{
+    display:block;
+    padding:14px 0 10px;
+    font:500 8px 'IBM Plex Mono';
+    letter-spacing:.1em;
+    color:#a99b93;
+  }
+  .mobileProjectFlow ol{
+    list-style:none;
+    margin:0;
+    padding:0;
+    border-bottom:1px solid rgba(242,238,231,.12);
+  }
+  .mobileProjectFlow li{
+    min-height:46px;
     display:grid;
-    grid-template-columns:1fr;
-    overflow:visible;
-    border-top:1px solid rgba(242,238,231,.14);
-    border-left:0;
-    background:#1b1714;
-  }
-
-  .projectStreamTabs button{
-    min-width:0;
-    width:100%;
     grid-template-columns:34px minmax(0,1fr);
-    padding:11px 14px;
-    border-right:0;
-    border-bottom:1px solid rgba(242,238,231,.1);
-    background:transparent;
+    align-items:center;
+    gap:8px;
+    border-top:1px solid rgba(242,238,231,.09);
   }
-
-  .projectStreamTabs button:last-child{
-    border-bottom:0;
+  .mobileProjectFlow li b{
+    font:500 8px 'IBM Plex Mono';
+    color:#b87d68;
   }
-
-  .projectStreamTabs button.active{
-    background:rgba(154,102,84,.2);
-    box-shadow:inset 3px 0 0 #c28d76;
-  }
-
-  .projectStreamTabs span{
-    font-size:8px;
-  }
-
-  .projectStreamTabs em{
+  .mobileProjectFlow li em{
     min-width:0;
-    font-size:9px;
-    white-space:normal;
-    overflow:visible;
-    text-overflow:clip;
-    line-height:1.35;
+    font:500 9px/1.35 'IBM Plex Mono';
+    font-style:normal;
+    letter-spacing:.025em;
+    color:#e0d5ce;
+    overflow-wrap:anywhere;
+  }
+
+  .mobileProjectTech{
+    margin-top:16px;
+    padding:12px 13px;
+    border:1px solid rgba(242,238,231,.13);
+    background:rgba(255,255,255,.035);
+    font:500 8px/1.55 'IBM Plex Mono';
+    letter-spacing:.05em;
+    color:#a8ad93;
+    overflow-wrap:anywhere;
+  }
+
+  .work .projectGrid{
+    margin-top:34px;
   }
 }
 
-@media(max-width:390px){
-  .renderViewport:not(.compact){
-    min-height:0;
+@media(max-width:420px){
+  .mobileProjectShowcase{
+    margin-top:36px;
   }
-
-  .renderViewport:not(.compact) canvas{
-    height:185px!important;
-    min-height:185px;
+  .mobileProjectSelector button{
+    flex-basis:82vw;
+    min-height:60px;
+    padding:10px 11px;
   }
-
-  .projectArchitecture{
-    padding:16px 13px 12px;
+  .mobileProjectCard{
+    padding:20px 13px 15px;
   }
-
-  .projectStreamCard{
-    padding:19px 13px 18px;
+  .mobileProjectCard h3{
+    font-size:clamp(28px,10.5vw,38px);
   }
-
-  .projectStreamTabs button{
-    padding:10px 12px;
+  .mobileProjectCard>p{
+    font-size:13px;
+    margin-top:14px;
+  }
+  .mobileProjectFlow li{
+    min-height:43px;
   }
 }
