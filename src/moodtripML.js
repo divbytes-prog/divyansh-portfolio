@@ -84,29 +84,99 @@ export function totalFeedbackSignals(feedback){
 }
 
 
+function rawForwardAndGradient(input){
+  const {coefs,intercepts}=artifacts.student;
+  const z1=dense(input,coefs[0],intercepts[0],false);
+  const a1=z1.map(relu);
+  const z2=dense(a1,coefs[1],intercepts[1],false);
+  const a2=z2.map(relu);
+
+  let raw=intercepts[2][0]||0;
+  for(let j=0;j<a2.length;j++)raw+=a2[j]*(coefs[2][j]?.[0]||0);
+
+  const g2=z2.map((z,j)=>(z>0?1:0)*(coefs[2][j]?.[0]||0));
+  const g1=z1.map((z,j)=>{
+    if(z<=0)return 0;
+    let v=0;
+    for(let k=0;k<g2.length;k++)v+=(coefs[1][j]?.[k]||0)*g2[k];
+    return v;
+  });
+  const grad=input.map((_,i)=>{
+    let v=0;
+    for(let j=0;j<g1.length;j++)v+=(coefs[0][i]?.[j]||0)*g1[j];
+    return v;
+  });
+
+  return {raw,gradient:grad};
+}
+
+export function integratedGradientsRanker(features,steps=48){
+  const baseline=[
+    .5,.5,.5,.5,.5,.5,.5,.5,
+    .5,.5,.5,.5,.5,.5,.5,.5,
+    .5,.5,.5,0,.5,.5
+  ];
+  const delta=features.map((v,i)=>(Number(v)||0)-baseline[i]);
+  const avgGrad=Array(features.length).fill(0);
+
+  for(let step=1;step<=steps;step++){
+    const alpha=step/steps;
+    const point=baseline.map((b,i)=>b+delta[i]*alpha);
+    const {gradient}=rawForwardAndGradient(point);
+    gradient.forEach((g,i)=>{avgGrad[i]+=g/steps});
+  }
+
+  const attributions=delta.map((d,i)=>d*avgGrad[i]);
+  const inputRaw=rawForwardAndGradient(features).raw;
+  const baselineRaw=rawForwardAndGradient(baseline).raw;
+  const attributionSum=attributions.reduce((a,b)=>a+b,0);
+
+  return {
+    method:'Integrated Gradients',
+    steps,
+    baseline,
+    attributions,
+    inputRaw,
+    baselineRaw,
+    completenessResidual:(inputRaw-baselineRaw)-attributionSum
+  };
+}
+
 export function explainDistilledRanker(features){
-  const original=predictDistilledRanker(features);
+  const ig=integratedGradientsRanker(features);
   const groups=[
-    {id:'mood',label:'Mood signal',indices:[0,1,2,3,4,5,6,7],neutral:.5},
-    {id:'place',label:'Place vibe',indices:[8,9,10,11,12,13,14,15],neutral:.5},
-    {id:'distance',label:'Distance',indices:[16],neutral:.5},
-    {id:'rating',label:'Rating',indices:[17],neutral:.5},
-    {id:'crowd',label:'Crowd fit',indices:[18],neutral:.5},
-    {id:'group',label:'Group mode',indices:[19],neutral:0},
-    {id:'time',label:'Time context',indices:[20,21],neutral:.5}
+    {id:'mood',label:'Mood signal',indices:[0,1,2,3,4,5,6,7]},
+    {id:'place',label:'Place vibe',indices:[8,9,10,11,12,13,14,15]},
+    {id:'distance',label:'Distance',indices:[16]},
+    {id:'rating',label:'Rating',indices:[17]},
+    {id:'crowd',label:'Crowd fit',indices:[18]},
+    {id:'group',label:'Group mode',indices:[19]},
+    {id:'time',label:'Time context',indices:[20,21]}
   ];
 
   return groups.map(group=>{
-    const ablated=[...features];
-    group.indices.forEach(i=>{ablated[i]=group.neutral});
-    const without=predictDistilledRanker(ablated);
+    const delta=group.indices.reduce((sum,i)=>sum+(ig.attributions[i]||0),0);
     return {
       id:group.id,
       label:group.label,
-      delta:original-without,
-      direction:original-without>=0?'up':'down'
+      delta,
+      direction:delta>=0?'up':'down',
+      method:ig.method,
+      completenessResidual:ig.completenessResidual
     };
   }).sort((a,b)=>Math.abs(b.delta)-Math.abs(a.delta));
+}
+
+export function mergeFeedbackMaps(...maps){
+  const out={};
+  for(const map of maps){
+    for(const [key,row] of Object.entries(map||{})){
+      if(!out[key])out[key]={pos:0,neg:0};
+      out[key].pos+=(Number(row?.pos)||0);
+      out[key].neg+=(Number(row?.neg)||0);
+    }
+  }
+  return out;
 }
 
 export function placeFeedbackAdjustment(feedback,mood,placeId){
