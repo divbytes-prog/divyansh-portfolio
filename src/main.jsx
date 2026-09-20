@@ -583,6 +583,180 @@ function MobileProjectShowcase(){
   </section>;
 }
 
+function InfoHeader(){
+  return <header className="infoHeader">
+    <div className="shell infoHeaderInner">
+      <a className="wordmark" href="/" aria-label="Divyansh Singh home"><span>DIVYANSH</span><b>SINGH</b></a>
+      <nav aria-label="Site pages">
+        <a href="/about">About</a>
+        <a href="/#work">Work</a>
+        <a href="/faq">FAQ</a>
+        <a href="/#contact">Contact</a>
+      </nav>
+    </div>
+  </header>;
+}
+
+function InfoFooter(){
+  return <footer className="infoFooter">
+    <div className="shell infoFooterGrid">
+      <div><b>DS</b><span>Divyansh Singh</span></div>
+      <nav aria-label="Footer pages">
+        <a href="/">Home</a>
+        <a href="/about">About</a>
+        <a href="/faq">FAQ</a>
+        <a href="/privacy">Privacy</a>
+        <a href="/terms">Terms</a>
+      </nav>
+      <span>© 2026 · Jaipur, India</span>
+    </div>
+  </footer>;
+}
+
+function InfoPage({kicker,title,accent,intro,children}){
+  useEffect(()=>window.scrollTo(0,0),[]);
+  return <main className="infoPage">
+    <InfoHeader/>
+    <section className="infoHero shell">
+      <p className="eyebrow">{kicker}</p>
+      <h1>{title} <em>{accent}</em></h1>
+      {intro&&<p>{intro}</p>}
+    </section>
+    <div className="infoBody shell">{children}</div>
+    <InfoFooter/>
+  </main>;
+}
+
+function AboutPage(){
+  return <InfoPage
+    kicker="ABOUT / DIVYANSH SINGH"
+    title="I like building things that"
+    accent="work in the real world."
+    intro="I’m a Computer Science student at LNMIIT Jaipur working across software, machine learning, data and product engineering. Most of what I learn eventually becomes something I can run, test, show, or improve."
+  >
+    <section className="aboutPortraitBlock">
+      <figure>
+        <img src={portraitData} alt="Divyansh Singh seated in a professional setting"/>
+        <figcaption><span>PROFILE / LNMIIT</span><b>BUILD → TEST → REFINE → SHIP</b></figcaption>
+      </figure>
+      <div>
+        <p className="eyebrow">HOW I THINK</p>
+        <h2>Clarity before complexity.</h2>
+        <p>I enjoy technical depth, but I care more about whether the final system is understandable and useful. My projects usually start small, then grow through iteration, measurement and feedback.</p>
+        <p>I’m especially interested in machine learning systems, data products, full-stack applications, algorithms and the engineering work required to turn models into usable experiences.</p>
+      </div>
+    </section>
+
+    <section className="aboutPrinciples">
+      {[
+        ['01','Understand','Break the problem down until the important part becomes obvious.'],
+        ['02','Build','Get a complete version working before polishing isolated pieces.'],
+        ['03','Measure','Use tests, metrics and real behavior instead of relying only on intuition.'],
+        ['04','Refine','Make the interface, code and explanation clearer with every pass.']
+      ].map(([n,t,p])=><article key={n}><span>{n}</span><h3>{t}</h3><p>{p}</p></article>)}
+    </section>
+
+    <section className="aboutNow">
+      <div>
+        <p className="eyebrow">CURRENTLY</p>
+        <h2>Learning by shipping.</h2>
+      </div>
+      <div>
+        <p>My current work combines coursework, DSA practice, ML experimentation, web development and portfolio projects such as MoodTrip. I use the portfolio as a living record of what I’m learning and what I can build.</p>
+        <a className="textLink" href="/#work">See selected work ↗</a>
+      </div>
+    </section>
+  </InfoPage>;
+}
+
+function FAQPage(){
+  const questions=[
+    ['What kind of work are you interested in?','Software engineering, machine learning, data-focused product work, research-oriented engineering, and projects where I can learn by building something real.'],
+    ['Are you open to internships or collaborations?','Yes. The best way to reach me is by email through the contact section of the portfolio. Include a little context about the role, project or problem.'],
+    ['What technologies do you use most?','Python, C++, JavaScript, React, Node.js, Flask, Streamlit, SQL, Pandas, NumPy, scikit-learn, Plotly, Git and GitHub. The exact stack changes with the problem.'],
+    ['Are the projects on this site real projects?','Yes. The portfolio links to working project repositories or live project experiences where available. Some are coursework or learning projects; others are broader product experiments.'],
+    ['What is MoodTrip?','MoodTrip is a mood-aware nearby-place recommendation project that combines text emotion signals, contextual features, clustering, learned ranking, feedback and explainability.'],
+    ['Do you use AI-generated code or tools?','I use modern developer tools where useful, including AI-assisted workflows, but I still review, test, debug and understand the code that goes into the projects I present.'],
+    ['Can I reuse code from your repositories?','Check the license in the specific repository first. A public repository does not automatically mean every asset or piece of content is available for unrestricted reuse.'],
+    ['How can I contact you?','Email me at 24DCS032@lnmiit.ac.in or use the contact link on the homepage.']
+  ];
+  return <InfoPage
+    kicker="FAQ / QUICK ANSWERS"
+    title="Questions people"
+    accent="usually ask."
+    intro="A short reference for the portfolio, projects, collaboration and how I work."
+  >
+    <section className="faqList">
+      {questions.map(([q,a],i)=><details key={q}>
+        <summary><span>{String(i+1).padStart(2,'0')}</span><b>{q}</b><i>+</i></summary>
+        <p>{a}</p>
+      </details>)}
+    </section>
+    <section className="faqContact">
+      <p className="eyebrow">STILL CURIOUS?</p>
+      <h2>Send the actual question.</h2>
+      <a className="button primary" href="mailto:24DCS032@lnmiit.ac.in">Email me <span>↗</span></a>
+    </section>
+  </InfoPage>;
+}
+
+function TermsPage(){
+  return <InfoPage
+    kicker="TERMS / SITE NOTICE"
+    title="Simple terms for"
+    accent="using this site."
+    intro="Last updated 20 September 2026. These terms are a plain-language notice for this personal portfolio and its project demos."
+  >
+    <div className="legalGrid">
+      <aside><span>ON THIS PAGE</span><a href="#purpose">Purpose</a><a href="#content">Content</a><a href="#projects">Projects</a><a href="#links">External links</a><a href="#availability">Availability</a><a href="#contact-terms">Contact</a></aside>
+      <article className="legalCopy">
+        <section id="purpose"><span>01</span><h2>Purpose</h2><p>This website is a personal portfolio used to present my work, experiments, skills and project demos. It is provided for informational and professional-reference purposes.</p></section>
+        <section id="content"><span>02</span><h2>Portfolio content</h2><p>Unless a project states otherwise, portfolio text, visual design and personal presentation materials remain my content. You may view and reference the site, but you should not present the portfolio itself as your own work.</p></section>
+        <section id="projects"><span>03</span><h2>Projects and code</h2><p>Individual repositories may have their own licenses, dependencies and third-party components. If you want to reuse code, follow the license and notices in that specific repository. Demo projects may change, be incomplete, or contain experimental features.</p></section>
+        <section id="links"><span>04</span><h2>External links</h2><p>The site links to services such as GitHub, maps, review sources and other third-party websites. Those services operate under their own terms and policies. A link does not mean I control or guarantee the external service.</p></section>
+        <section id="availability"><span>05</span><h2>Availability and accuracy</h2><p>I try to keep portfolio information accurate, but I do not guarantee that every page, demo, metric, external data source or linked service will always be available or error-free. Project benchmarks are described with their own scope and limitations where relevant.</p></section>
+        <section id="contact-terms"><span>06</span><h2>Changes and contact</h2><p>I may update these terms when the site or its features change. For questions about the portfolio or these terms, email <a href="mailto:24DCS032@lnmiit.ac.in">24DCS032@lnmiit.ac.in</a>.</p></section>
+      </article>
+    </div>
+  </InfoPage>;
+}
+
+function PrivacyPage(){
+  return <InfoPage
+    kicker="PRIVACY / TRANSPARENCY"
+    title="What this site"
+    accent="does with data."
+    intro="Last updated 20 September 2026. This page explains the data behavior of the portfolio and its interactive project demos in straightforward language."
+  >
+    <div className="legalGrid">
+      <aside><span>ON THIS PAGE</span><a href="#browse">Browsing</a><a href="#contact-privacy">Contact</a><a href="#moodtrip-privacy">MoodTrip</a><a href="#storage">Local storage</a><a href="#third-party">Third parties</a><a href="#choices">Your choices</a></aside>
+      <article className="legalCopy">
+        <section id="browse"><span>01</span><h2>Browsing the portfolio</h2><p>You do not need to create an account to browse this portfolio. Like most hosted websites, infrastructure providers may process basic technical request information needed to deliver and secure the site.</p></section>
+        <section id="contact-privacy"><span>02</span><h2>Contact</h2><p>The contact links open your email client. If you email me, the information you include is handled through the email services used by you and by me; the portfolio itself does not provide a separate contact-form database.</p></section>
+        <section id="moodtrip-privacy"><span>03</span><h2>MoodTrip location and feedback</h2><p>MoodTrip can request browser geolocation only after you choose to share it. Location is used to find nearby places and map information. Depending on the feature, location or place queries may be processed through the map, place or review services used by the project. MoodTrip also supports recommendation feedback such as Good Pick / Not For Me; when a global feedback backend is available, anonymous recommendation events may be sent to that backend to improve ranking.</p></section>
+        <section id="storage"><span>04</span><h2>Device storage</h2><p>Some MoodTrip preferences, history, feedback or review state can be stored in your browser so the experience can remember choices on that device. You can clear browser site data to remove locally stored information.</p></section>
+        <section id="third-party"><span>05</span><h2>Third-party services</h2><p>External links and project features may use services such as GitHub, Vercel, map providers, public review sources or Google links. Their handling of data is governed by their own policies. I do not sell personal information collected through this portfolio.</p></section>
+        <section id="choices"><span>06</span><h2>Your choices</h2><p>You can browse the main portfolio without sharing precise location. You can decline a browser location request, avoid feedback features, clear locally stored site data, and contact me with privacy questions at <a href="mailto:24DCS032@lnmiit.ac.in">24DCS032@lnmiit.ac.in</a>.</p></section>
+      </article>
+    </div>
+  </InfoPage>;
+}
+
+function NotFoundPage(){
+  return <InfoPage
+    kicker="404 / NOT FOUND"
+    title="This page"
+    accent="isn’t here."
+    intro="The URL may have changed, or the page may never have existed."
+  >
+    <section className="notFoundActions">
+      <a className="button primary" href="/">Back home <span>↗</span></a>
+      <a className="textLink" href="/#work">View projects</a>
+    </section>
+  </InfoPage>;
+}
+
+
 function App(){
   const[menu,setMenu]=useState(false);
   const reduce=useReducedMotion();
@@ -809,7 +983,7 @@ function App(){
     <footer className="footer">
       <div className="shell footerInner">
         <Reveal><div className="footerBrand"><b>DS</b><span>Divyansh Singh</span></div></Reveal>
-        <div className="footerLinks"><MagneticLink href="#top">Back to top ↑</MagneticLink><MagneticLink href="https://github.com/divbytes-prog" external>GitHub ↗</MagneticLink></div>
+        <div className="footerLinks"><MagneticLink href="#top">Back to top ↑</MagneticLink><a href="/about">About</a><a href="/faq">FAQ</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a><MagneticLink href="https://github.com/divbytes-prog" external>GitHub ↗</MagneticLink></div>
         <span className="copyright">© 2026 · Jaipur, India</span>
       </div>
     </footer>
@@ -817,4 +991,12 @@ function App(){
 }
 
 const cleanPath=window.location.pathname.replace(/\/+$/,'')||'/';
-createRoot(document.getElementById('root')).render(cleanPath==='/moodtrip'?<MoodTrip/>:<App/>);
+const routes={
+  '/':<App/>,
+  '/moodtrip':<MoodTrip/>,
+  '/about':<AboutPage/>,
+  '/faq':<FAQPage/>,
+  '/terms':<TermsPage/>,
+  '/privacy':<PrivacyPage/>
+};
+createRoot(document.getElementById('root')).render(routes[cleanPath]||<NotFoundPage/>);
