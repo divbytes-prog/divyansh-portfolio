@@ -28,6 +28,33 @@ function safeFeatures(value){
   return out.every(Number.isFinite)?out:null;
 }
 
+function cleanEvent(payload){
+  const eventType=payload.eventType==='impression'?'impression':'feedback';
+  const row={
+    session_id:cleanString(payload.sessionId,80),
+    event_type:eventType,
+    recommendation_id:cleanString(payload.recommendationId,96),
+    rank_position:Number.isFinite(Number(payload.rankPosition))?Math.max(1,Math.min(100,Math.round(Number(payload.rankPosition)))):null,
+    mood:cleanString(payload.mood,32),
+    category:cleanString(payload.category,64),
+    place_id:cleanString(payload.placeId,180),
+    place_name:cleanString(payload.placeName,180),
+    positive:eventType==='feedback'?Boolean(payload.positive):null,
+    model_score:safeNumber(payload.modelScore,0,100),
+    neural_score:safeNumber(payload.neuralScore,0,100),
+    distance_km:safeNumber(payload.distanceKm,0,1000),
+    rating:safeNumber(payload.rating,0,5),
+    group_mode:Boolean(payload.groupMode),
+    rank_features:safeFeatures(payload.rankFeatures),
+    model_version:cleanString(payload.modelVersion||'distilled-nn-v1',64),
+    provider:cleanString(payload.provider,64),
+    source:'moodtrip-web'
+  };
+  if(!row.session_id||!row.mood||!row.category||!row.place_id||!row.rank_features)return null;
+  if(eventType==='feedback'&&!row.recommendation_id)return null;
+  return row;
+}
+
 async function supabase(path,options={}){
   const {url,key,configured}=env();
   if(!configured)throw new Error('storage-not-configured');
@@ -49,32 +76,16 @@ async function supabase(path,options={}){
 }
 
 async function storeFeedback(payload){
-  const row={
-    session_id:cleanString(payload.sessionId,80),
-    mood:cleanString(payload.mood,32),
-    category:cleanString(payload.category,64),
-    place_id:cleanString(payload.placeId,180),
-    place_name:cleanString(payload.placeName,180),
-    positive:Boolean(payload.positive),
-    model_score:safeNumber(payload.modelScore,0,100),
-    neural_score:safeNumber(payload.neuralScore,0,100),
-    distance_km:safeNumber(payload.distanceKm,0,1000),
-    rating:safeNumber(payload.rating,0,5),
-    group_mode:Boolean(payload.groupMode),
-    rank_features:safeFeatures(payload.rankFeatures),
-    model_version:cleanString(payload.modelVersion||'distilled-nn-v1',64),
-    source:'moodtrip-web'
-  };
-
-  if(!row.session_id||!row.mood||!row.category||!row.place_id||!row.rank_features){
-    throw new Error('invalid-feedback-payload');
-  }
+  const rawEvents=Array.isArray(payload?.events)?payload.events:[payload];
+  const rows=rawEvents.map(cleanEvent).filter(Boolean);
+  if(!rows.length)throw new Error('invalid-feedback-payload');
 
   await supabase('moodtrip_feedback',{
     method:'POST',
     headers:{Prefer:'return=minimal'},
-    body:JSON.stringify(row)
+    body:JSON.stringify(rows)
   });
+  return rows.length;
 }
 
 async function aggregateFeedback(mood){
@@ -123,8 +134,8 @@ export default {
       if(!configured)return json({stored:false,storage:'local',configured:false},202);
 
       try{
-        await storeFeedback(payload);
-        return json({stored:true,storage:'supabase',configured:true},201);
+        const count=await storeFeedback(payload);
+        return json({stored:true,storage:'supabase',configured:true,count},201);
       }catch(error){
         const invalid=String(error?.message||'').includes('invalid-feedback-payload');
         console.warn('Feedback store failed',error?.message);
