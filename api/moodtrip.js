@@ -488,10 +488,11 @@ function normalizeKartaPhoto(item,target,index){
   },target);
 }
 
-async function kartaViewStreetImages(lat,lng,headers){
+async function kartaViewStreetImages(lat,lng,headers,radiusMeters=2500){
+  const radius=Math.max(500,Math.min(3000,Number(radiusMeters)||2500));
   const url='https://api.openstreetcam.org/2.0/photo/?lat='+encodeURIComponent(lat)+
     '&lng='+encodeURIComponent(lng)+
-    '&radius=700&zoomLevel=18&join=sequence&orderBy=id&orderDirection=desc';
+    '&radius='+encodeURIComponent(radius)+'&zoomLevel=18&join=sequence&orderBy=id&orderDirection=desc';
   const data=await fetchJson(url,{headers},6000);
   const rows=Array.isArray(data?.result?.data)
     ?data.result.data
@@ -553,27 +554,29 @@ function normalizePanoramaxFeature(feature,target,index){
   },target);
 }
 
-async function panoramaxStreetImages(lat,lng,headers){
-  const box=bboxAround(lat,lng,650);
+async function panoramaxStreetImages(lat,lng,headers,radiusMeters=2500){
+  const radius=Math.max(500,Math.min(3000,Number(radiusMeters)||2500));
+  const box=bboxAround(lat,lng,radius);
   const url='https://api.panoramax.xyz/api/search?bbox='+
     encodeURIComponent([box.west,box.south,box.east,box.north].join(','))+
-    '&limit=40';
+    '&limit=100';
   const data=await fetchJson(url,{headers},6500);
   const rows=Array.isArray(data?.features)?data.features:[];
   return rows.map((row,i)=>normalizePanoramaxFeature(row,{lat,lng},i)).filter(Boolean);
 }
 
-async function mapillaryStreetImages(lat,lng){
+async function mapillaryStreetImages(lat,lng,radiusMeters=2500){
   const token=process.env.MAPILLARY_ACCESS_TOKEN||process.env.MAPILLARY_TOKEN;
   if(!token)return [];
-  const box=bboxAround(lat,lng,650);
+  const radius=Math.max(500,Math.min(3000,Number(radiusMeters)||2500));
+  const box=bboxAround(lat,lng,radius);
   const fields=[
     'id','thumb_2048_url','thumb_1024_url','computed_geometry',
     'captured_at','computed_compass_angle','camera_type','sequence'
   ].join(',');
   const url='https://graph.mapillary.com/images?access_token='+encodeURIComponent(token)+
     '&bbox='+encodeURIComponent([box.west,box.south,box.east,box.north].join(','))+
-    '&limit=40&fields='+encodeURIComponent(fields);
+    '&limit=100&fields='+encodeURIComponent(fields);
   const data=await fetchJson(url,{},6500);
   const rows=Array.isArray(data?.data)?data.data:[];
   return rows.map((row,i)=>{
@@ -607,13 +610,14 @@ function streetProviderSummary(id,status,count,error=''){
 }
 
 async function openStreetImagery(lat,lng,headers){
+  const searchRadiusMeters=2500;
   const jobs=[
-    ['panoramax',()=>panoramaxStreetImages(lat,lng,headers)],
-    ['kartaview',()=>kartaViewStreetImages(lat,lng,headers)]
+    ['panoramax',()=>panoramaxStreetImages(lat,lng,headers,searchRadiusMeters)],
+    ['kartaview',()=>kartaViewStreetImages(lat,lng,headers,searchRadiusMeters)]
   ];
 
   if(process.env.MAPILLARY_ACCESS_TOKEN||process.env.MAPILLARY_TOKEN){
-    jobs.unshift(['mapillary',()=>mapillaryStreetImages(lat,lng)]);
+    jobs.unshift(['mapillary',()=>mapillaryStreetImages(lat,lng,searchRadiusMeters)]);
   }
 
   const settled=await Promise.all(jobs.map(async([id,run])=>{
@@ -625,17 +629,22 @@ async function openStreetImagery(lat,lng,headers){
     }
   }));
 
+  const all=settled.flatMap(x=>x.items||[])
+    .filter(item=>item&&item.distanceMeters<=searchRadiusMeters)
+    .sort((a,b)=>a.score-b.score);
+
+  const local=all.filter(item=>item.distanceMeters<=900);
+  const usable=local.length?local:all;
+
   const byProvider=new Map();
   settled.forEach(result=>{
-    const items=(result.items||[])
-      .filter(item=>item&&item.distanceMeters<=900)
+    const source=(result.items||[])
+      .filter(item=>item&&item.distanceMeters<=searchRadiusMeters)
       .sort((a,b)=>a.score-b.score);
-    byProvider.set(result.id,items);
+    const preferred=local.length?source.filter(item=>item.distanceMeters<=900):source;
+    byProvider.set(result.id,preferred);
   });
 
-  // Interleave sources so one dense provider cannot bury useful imagery from
-  // the others. Within each source the best distance + camera-direction match
-  // still comes first.
   const seen=new Set();
   const balanced=[];
   let round=0;
@@ -655,6 +664,15 @@ async function openStreetImagery(lat,lng,headers){
     round++;
   }
 
+  if(!balanced.length){
+    usable.slice(0,18).forEach(item=>{
+      const key=item.providerId+'|'+item.rawId;
+      if(seen.has(key))return;
+      seen.add(key);
+      balanced.push(item);
+    });
+  }
+
   balanced.sort((a,b)=>{
     const nearGap=a.distanceMeters-b.distanceMeters;
     if(Math.abs(nearGap)>90)return nearGap;
@@ -664,12 +682,19 @@ async function openStreetImagery(lat,lng,headers){
   return {
     images:balanced,
     providers:[
-      ...settled.map(x=>streetProviderSummary(x.id,x.status,x.items?.length,x.error)),
+      ...settled.map(x=>{
+        const items=(x.items||[]).filter(item=>item&&item.distanceMeters<=searchRadiusMeters);
+        const count=local.length?items.filter(item=>item.distanceMeters<=900).length:items.length;
+        return streetProviderSummary(x.id,x.status,count,x.error);
+      }),
       ...(process.env.MAPILLARY_ACCESS_TOKEN||process.env.MAPILLARY_TOKEN
         ?[]
         :[streetProviderSummary('mapillary','token-optional',0)])
     ],
-    selected:balanced[0]||null
+    selected:balanced[0]||null,
+    coverageRadiusMeters:local.length?900:searchRadiusMeters,
+    expanded:!local.length&&balanced.length>0,
+    nearestDistanceMeters:balanced[0]?.distanceMeters??null
   };
 }
 
