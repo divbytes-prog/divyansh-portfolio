@@ -1,5 +1,5 @@
 from __future__ import annotations
-import json, math, time
+import json, math, time, os, urllib.request, urllib.parse
 from pathlib import Path
 from itertools import product
 
@@ -151,6 +151,133 @@ def mood_text_benchmark():
             "accuracy":round(float(accuracy_score(d,pred)),4),
             "model":"TF-IDF bigram + multinomial logistic regression"}
 
+
+def load_real_feedback_rows(limit=20000):
+    """Load anonymous interaction rows from Supabase or a local JSON export."""
+    export_path=os.getenv("MOODTRIP_FEEDBACK_JSON","").strip()
+    if export_path:
+        p=Path(export_path)
+        if p.exists():
+            data=json.loads(p.read_text(encoding="utf-8"))
+            return data if isinstance(data,list) else data.get("rows",[])
+
+    url=os.getenv("SUPABASE_URL","").rstrip("/")
+    key=os.getenv("SUPABASE_SERVICE_ROLE_KEY","")
+    if not url or not key:
+        return []
+
+    fields="session_id,event_type,recommendation_id,rank_position,mood,category,place_id,positive,rank_features,created_at"
+    endpoint=(url+"/rest/v1/moodtrip_feedback?select="+urllib.parse.quote(fields,safe=",")+
+              "&order=created_at.asc&limit="+str(limit))
+    req=urllib.request.Request(endpoint,headers={
+        "apikey":key,
+        "Authorization":"Bearer "+key,
+        "Accept":"application/json"
+    })
+    try:
+        with urllib.request.urlopen(req,timeout=20) as response:
+            payload=json.loads(response.read().decode("utf-8"))
+            return payload if isinstance(payload,list) else []
+    except Exception as exc:
+        print("Real feedback fetch skipped:",exc)
+        return []
+
+def real_feedback_dataset(rows):
+    explicit={}
+    impressions=[]
+    for row in rows:
+        key=(str(row.get("session_id","")),str(row.get("recommendation_id","")),str(row.get("place_id","")))
+        event=row.get("event_type") or "feedback"
+        features=row.get("rank_features")
+        if not isinstance(features,list) or len(features)!=22:
+            continue
+        try:
+            features=[float(v) for v in features]
+        except Exception:
+            continue
+        if event=="feedback" and row.get("positive") is not None:
+            explicit[key]=1.0 if bool(row.get("positive")) else 0.0
+        elif event=="impression":
+            impressions.append((key,features,row))
+
+    X=[];y=[];sessions=[]
+    for key,features,row in impressions:
+        if key in explicit:
+            X.append(features);y.append(explicit[key]);sessions.append(key[1] or key[0])
+
+    # Feedback can exist even if a corresponding impression was lost.
+    seen={key for key,_,_ in impressions}
+    for row in rows:
+        if (row.get("event_type") or "feedback")!="feedback" or row.get("positive") is None:
+            continue
+        key=(str(row.get("session_id","")),str(row.get("recommendation_id","")),str(row.get("place_id","")))
+        if key in seen:
+            continue
+        features=row.get("rank_features")
+        if isinstance(features,list) and len(features)==22:
+            try:
+                X.append([float(v) for v in features])
+                y.append(1.0 if bool(row.get("positive")) else 0.0)
+                sessions.append(key[1] or key[0])
+            except Exception:
+                pass
+
+    return (
+        np.asarray(X,float) if X else np.empty((0,22),float),
+        np.asarray(y,float) if y else np.empty((0,),float),
+        np.asarray(sessions,dtype=object) if sessions else np.empty((0,),dtype=object),
+        impressions,
+        explicit
+    )
+
+def real_ranking_metrics(rows,predict_fn,k=5):
+    feedback={}
+    slates={}
+    for row in rows:
+        event=row.get("event_type") or "feedback"
+        rec=str(row.get("recommendation_id") or "")
+        sid=str(row.get("session_id") or "")
+        pid=str(row.get("place_id") or "")
+        if not rec or not pid:
+            continue
+        key=(sid,rec,pid)
+        if event=="feedback" and row.get("positive") is not None:
+            feedback[key]=bool(row.get("positive"))
+        elif event=="impression":
+            features=row.get("rank_features")
+            if isinstance(features,list) and len(features)==22:
+                try:
+                    slates.setdefault((sid,rec),[]).append((pid,[float(v) for v in features]))
+                except Exception:
+                    pass
+
+    P=[];R=[];N=[];used=0
+    for slate_key,items in slates.items():
+        positives={pid for pid,_ in items if feedback.get((slate_key[0],slate_key[1],pid)) is True}
+        if not positives or len(items)<3:
+            continue
+        X=np.asarray([features for _,features in items],float)
+        scores=np.asarray(predict_fn(X),float)
+        order=np.argsort(-scores)[:min(k,len(items))]
+        ranked=[items[i][0] for i in order]
+        hits=sum(pid in positives for pid in ranked)
+        P.append(hits/max(1,min(k,len(items))))
+        R.append(hits/len(positives))
+        dcg=sum((1 if pid in positives else 0)/math.log2(rank+2) for rank,pid in enumerate(ranked))
+        ideal=sum(1/math.log2(rank+2) for rank in range(min(len(positives),k)))
+        N.append(dcg/ideal if ideal else 0)
+        used+=1
+
+    if not used:
+        return None
+    return {
+        "sessions":used,
+        "precision_at_5":round(float(np.mean(P)),4),
+        "recall_at_5":round(float(np.mean(R)),4),
+        "ndcg_at_5":round(float(np.mean(N)),4),
+        "protocol":"implicit ranking: explicit Good Pick is relevant; unlabeled impressions are non-relevant only for slate evaluation"
+    }
+
 def main():
     X,y,sids,sessions=make_rank_data()
     train_s,test_s=train_test_split(np.arange(sessions),test_size=.25,random_state=42)
@@ -164,8 +291,36 @@ def main():
                     max_iter=500,early_stopping=True,validation_fraction=.15,random_state=42).fit(Xtr,ytr)
 
     teacher=.65*nn.predict(Xtr)+.20*rf.predict(Xtr)+.15*xgb.predict(Xtr)
+
+    real_rows=load_real_feedback_rows()
+    Xreal,yreal,real_sessions,real_impressions,real_explicit=real_feedback_dataset(real_rows)
+    real_used=False
+    real_holdout=None
+
+    Xstudent=Xtr
+    ystudent=teacher
+
+    # Fine-tune the browser student only when there is enough explicit real
+    # feedback to reduce the risk of overfitting the first few users.
+    if len(yreal)>=120 and len(np.unique(yreal))>1:
+        unique_sessions=np.unique(real_sessions)
+        if len(unique_sessions)>=12:
+            train_real,test_real=train_test_split(unique_sessions,test_size=.2,random_state=42)
+            rtr=np.isin(real_sessions,train_real); rte=np.isin(real_sessions,test_real)
+        else:
+            rtr=np.ones(len(yreal),dtype=bool); rte=np.zeros(len(yreal),dtype=bool)
+
+        # Explicit user labels are repeated to give them meaningful influence
+        # while retaining synthetic pretraining for cold-start stability.
+        repeat=6
+        Xstudent=np.vstack([Xtr,np.repeat(Xreal[rtr],repeat,axis=0)])
+        ystudent=np.concatenate([teacher,np.repeat(yreal[rtr],repeat)])
+        real_used=True
+        if rte.any():
+            real_holdout=(Xreal[rte],yreal[rte])
+
     student=MLPRegressor(hidden_layer_sizes=(16,8),activation="relu",alpha=.002,learning_rate_init=.004,
-                         max_iter=500,early_stopping=True,validation_fraction=.15,random_state=7).fit(Xtr,teacher)
+                         max_iter=500,early_stopping=True,validation_fraction=.15,random_state=7).fit(Xstudent,ystudent)
 
     preds={"Rule Based":rule_predict(Xte),"Content Based":content_predict(Xte),
            "Random Forest":rf.predict(Xte),"XGBoost Ranker":xgb.predict(Xte),
@@ -185,13 +340,36 @@ def main():
                        "mae":round(float(mean_absolute_error(yte,p)),4),
                        "latency_ms_per_1000":round(median_latency(fns[name],Xte),3)}
 
+    real_benchmark={
+        "rows_total":len(real_rows),
+        "explicit_feedback_rows":len(yreal),
+        "positive_feedback":int(np.sum(yreal==1)) if len(yreal) else 0,
+        "negative_feedback":int(np.sum(yreal==0)) if len(yreal) else 0,
+        "fine_tuned":bool(real_used),
+        "minimum_feedback_for_finetune":120
+    }
+
+    if real_holdout is not None:
+        Xrh,yrh=real_holdout
+        pred=np.clip(student.predict(Xrh),0,1)
+        real_benchmark["holdout_rows"]=len(yrh)
+        real_benchmark["mae"]=round(float(mean_absolute_error(yrh,pred)),4)
+        real_benchmark["f1_at_0_5"]=round(float(f1_score(yrh,pred>=.5)),4)
+
+    slate_metrics=real_ranking_metrics(real_rows,student.predict,k=5)
+    if slate_metrics:
+        real_benchmark["ranking"]=slate_metrics
+
     names=[f"mood_{i}" for i in range(8)]+[f"place_{i}" for i in range(8)]+[
         "distance_norm","rating_norm","crowd_fit","group_mode","hour_sin","hour_cos"]
 
     artifact={"benchmark":metrics,"ranking_meta":{"feature_names":names,"training_sessions":sessions,
               "samples":len(X),"test_sessions":len(test_s),"seed":SEED,
               "teacher_weights":{"Neural Recommender":.65,"Random Forest":.20,"XGBoost Ranker":.15},
-              "dataset":"controlled synthetic preference simulation","production_model":"distilled neural ranker"},
+              "dataset":"synthetic pretraining + real explicit feedback fine-tuning" if real_used else "controlled synthetic preference simulation",
+              "production_model":"distilled neural ranker",
+              "real_feedback_finetuned":bool(real_used)},
+              "real_benchmark":real_benchmark,
               "mood_benchmark":mood_text_benchmark(),
               "student":{"coefs":[np.round(x,6).tolist() for x in student.coefs_],
                          "intercepts":[np.round(x,6).tolist() for x in student.intercepts_]}}
