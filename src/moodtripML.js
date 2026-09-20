@@ -77,7 +77,10 @@ export function productionEnsembleScore({neuralScore,contentScore,banditScore}){
 }
 
 export function totalFeedbackSignals(feedback){
-  return Object.values(feedback||{}).reduce((sum,row)=>sum+(Number(row.pos)||0)+(Number(row.neg)||0),0);
+  return Object.entries(feedback||{}).reduce((sum,[key,row])=>{
+    if(!String(key).startsWith('place|'))return sum;
+    return sum+(Number(row.pos)||0)+(Number(row.neg)||0);
+  },0);
 }
 
 
