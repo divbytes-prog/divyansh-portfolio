@@ -1919,3 +1919,238 @@ a{text-decoration:none}
     grid-template-rows:repeat(3,25px);
   }
 }
+
+
+/* ML evaluation lab */
+.mtEvaluation{
+  width:var(--shell);
+  margin:0 auto;
+  padding:120px 0;
+  border-top:1px solid var(--line);
+}
+.mtEvalIntro{
+  display:grid;
+  grid-template-columns:minmax(0,1.1fr) minmax(360px,.9fr);
+  gap:34px;
+  align-items:end;
+  margin-top:62px;
+  padding:24px 0;
+  border-top:1px solid var(--line);
+  border-bottom:1px solid var(--line);
+}
+.mtEvalIntro>div:first-child>span{
+  font:500 8px 'IBM Plex Mono';
+  letter-spacing:.08em;
+  color:var(--clay);
+}
+.mtEvalIntro>div:first-child>b{
+  display:block;
+  margin-top:10px;
+  font-size:22px;
+  letter-spacing:-.03em;
+}
+.mtEvalIntro>div:first-child p{
+  max-width:720px;
+  margin:11px 0 0;
+  color:#685f59;
+  font-size:11px;
+  line-height:1.7;
+}
+.mtEvalStats{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  border:1px solid var(--line);
+  background:#e7ddd4;
+}
+.mtEvalStats>div{
+  min-width:0;
+  min-height:126px;
+  padding:16px;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+  border-right:1px solid var(--line);
+}
+.mtEvalStats>div:last-child{border-right:0}
+.mtEvalStats strong{
+  font:500 42px/1 'Fraunces';
+  color:var(--clay-deep);
+}
+.mtEvalStats span{
+  font:500 7px/1.5 'IBM Plex Mono';
+  letter-spacing:.05em;
+  color:#70665e;
+}
+.mtBenchmarkTable{
+  margin-top:30px;
+  border-top:1px solid var(--ink);
+  border-bottom:1px solid var(--ink);
+  overflow:auto;
+}
+.mtBenchmarkRow{
+  min-width:760px;
+  display:grid;
+  grid-template-columns:minmax(220px,1.6fr) repeat(5,minmax(84px,.7fr));
+  border-top:1px solid var(--line);
+}
+.mtBenchmarkRow:first-child{border-top:0}
+.mtBenchmarkRow>span{
+  min-width:0;
+  padding:13px 12px;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  border-left:1px solid var(--line);
+  font:500 9px 'IBM Plex Mono';
+}
+.mtBenchmarkRow>span:first-child{border-left:0}
+.mtBenchmarkRow.head{
+  background:var(--dark);
+  color:white;
+}
+.mtBenchmarkRow.head>span{
+  border-color:rgba(255,255,255,.16);
+  font-size:7px;
+  letter-spacing:.07em;
+}
+.mtBenchmarkRow>span:not(:first-child){
+  justify-content:flex-end;
+  font-variant-numeric:tabular-nums;
+}
+.mtBenchmarkRow>span:first-child b{
+  font:600 10px 'Bricolage Grotesque';
+}
+.mtBenchmarkRow>span:first-child small{
+  padding:3px 5px;
+  background:var(--clay);
+  color:white;
+  font:500 6px 'IBM Plex Mono';
+  letter-spacing:.05em;
+}
+.mtBenchmarkRow.production{
+  background:#d9ddcf;
+  box-shadow:inset 4px 0 0 var(--clay-deep);
+}
+.mtBenchmarkRow.production>span{
+  border-color:#b9b9a9;
+}
+.mtDistillDiagram{
+  margin-top:28px;
+  display:grid;
+  grid-template-columns:1fr auto 1fr auto 1fr auto 1.15fr;
+  gap:10px;
+  align-items:center;
+}
+.mtDistillDiagram>div{
+  min-height:120px;
+  padding:16px;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+  border:1px solid var(--line);
+  background:var(--paper);
+}
+.mtDistillDiagram>div.student{
+  background:var(--dark);
+  color:white;
+  box-shadow:10px 10px 0 var(--clay);
+}
+.mtDistillDiagram>div span,
+.mtDistillDiagram>div small,
+.mtDistillDiagram>i{
+  font:500 7px 'IBM Plex Mono';
+  letter-spacing:.05em;
+}
+.mtDistillDiagram>div span{color:var(--clay-deep)}
+.mtDistillDiagram>div.student span{color:#d2a890}
+.mtDistillDiagram>div b{
+  font-size:17px;
+  letter-spacing:-.025em;
+}
+.mtDistillDiagram>div small{color:#766d66}
+.mtDistillDiagram>div.student small{color:#c8bdb5}
+.mtDistillDiagram>i{
+  font-style:normal;
+  color:var(--clay-deep);
+  text-align:center;
+}
+.mtBenchmarkNote{
+  display:grid;
+  grid-template-columns:150px 1fr;
+  gap:30px;
+  margin-top:28px;
+  padding-top:18px;
+  border-top:1px solid var(--line);
+}
+.mtBenchmarkNote>span{
+  font:500 8px 'IBM Plex Mono';
+  color:var(--clay);
+}
+.mtBenchmarkNote p{
+  max-width:900px;
+  margin:0;
+  font-size:11px;
+  line-height:1.75;
+  color:#635b55;
+}
+.mtBenchmarkNote b{color:var(--ink)}
+
+/* adaptive-feedback actions */
+.mtPlaceActions button.negative{
+  color:#8e5146;
+  border-bottom:1px solid #8e5146;
+}
+.mtPlaceActions button.negative:hover{
+  color:#5f2e27;
+}
+.mtPlaceSignals span:nth-last-child(-n+3) b{
+  color:var(--clay-deep);
+}
+
+@media(max-width:1000px){
+  .mtEvalIntro{
+    grid-template-columns:1fr;
+  }
+  .mtDistillDiagram{
+    grid-template-columns:1fr auto 1fr;
+  }
+  .mtDistillDiagram>i:nth-of-type(3){
+    grid-column:1/4;
+  }
+  .mtDistillDiagram>div.student{
+    grid-column:1/4;
+  }
+}
+@media(max-width:900px){
+  .mtEvaluation{padding:100px 0}
+  .mtEvalStats{grid-template-columns:repeat(3,1fr)}
+}
+@media(max-width:620px){
+  .mtEvaluation{padding:86px 0}
+  .mtEvalIntro{margin-top:44px}
+  .mtEvalStats{
+    grid-template-columns:1fr;
+  }
+  .mtEvalStats>div{
+    min-height:94px;
+    border-right:0;
+    border-bottom:1px solid var(--line);
+  }
+  .mtEvalStats>div:last-child{border-bottom:0}
+  .mtBenchmarkRow{
+    min-width:700px;
+  }
+  .mtDistillDiagram{
+    grid-template-columns:1fr;
+  }
+  .mtDistillDiagram>i,
+  .mtDistillDiagram>i:nth-of-type(3),
+  .mtDistillDiagram>div.student{
+    grid-column:auto;
+  }
+  .mtDistillDiagram>i{padding:2px 0}
+  .mtBenchmarkNote{
+    grid-template-columns:1fr;
+    gap:8px;
+  }
+}
