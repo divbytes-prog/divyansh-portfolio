@@ -378,16 +378,53 @@ function PopWindow({children,className='',delay=0,onClick}){
 
 function LiveMoodSignal({mood,status}){
   const reduce=useReducedMotion();
-  return <div className="mtLiveSignal" aria-hidden="true">
-    <div className="mtSignalHead"><span><i/>LIVE MOOD SIGNAL</span><b>{status==='ready'?'DL READY':'LOCAL MODE'}</b></div>
-    <div className="mtRadar">
-      <motion.div className="mtOrbit mtOne" animate={reduce?undefined:{rotate:360}} transition={{duration:14,repeat:Infinity,ease:'linear'}}><span/></motion.div>
-      <motion.div className="mtOrbit mtTwo" animate={reduce?undefined:{rotate:-360}} transition={{duration:9,repeat:Infinity,ease:'linear'}}><span/></motion.div>
-      <motion.div className="mtPulse" animate={reduce?undefined:{scale:[1,1.7,1],opacity:[.9,.35,.9]}} transition={{duration:2.2,repeat:Infinity}}/>
-      <div className="mtCross mtX"/><div className="mtCross mtY"/>
-      <strong>{mood.toUpperCase()}</strong>
+  const vector=MOOD_VECTORS[mood]||MOOD_VECTORS.happy;
+  const candidates=(MOOD_CATEGORIES[mood]||['cafe','park','attraction'])
+    .slice(0,4)
+    .map(category=>({
+      category,
+      score:Math.round(cosine(vector,CATEGORY_FEATURES[category]||CATEGORY_FEATURES.unknown)*100)
+    }))
+    .sort((a,b)=>b.score-a.score)
+    .slice(0,3);
+
+  return <div className="mtLiveSignal mtRecommendationEngine" aria-hidden="true">
+    <div className="mtSignalHead">
+      <span><i/>LIVE RECOMMENDATION ENGINE</span>
+      <b>{status==='ready'?'MODEL READY':'LOCAL MODEL'}</b>
     </div>
-    <div className="mtBars">{[42,71,55,88,61,94,73,84].map((h,i)=><motion.i key={i} style={{height:h+'%'}} animate={reduce?undefined:{scaleY:[.55,1,.7,.9,.55]}} transition={{duration:1.7+(i%3)*.28,repeat:Infinity,delay:i*.06}}/>)}</div>
+
+    <div className="mtEngineFlow">
+      {[
+        ['01',mood.toUpperCase(),'MOOD'],
+        ['02','VECTOR','ENCODE'],
+        ['03','K-MEANS','CLUSTER'],
+        ['04','RANK','FUSE']
+      ].map(([n,label,sub],i)=><React.Fragment key={n}>
+        <motion.div
+          className="mtEngineNode"
+          animate={reduce?undefined:{y:[0,-2,0]}}
+          transition={{duration:2.4+i*.2,repeat:Infinity,delay:i*.12}}
+        >
+          <small>{n}</small><b>{label}</b><span>{sub}</span>
+        </motion.div>
+        {i<3&&<motion.i className="mtEngineArrow" animate={reduce?undefined:{opacity:[.25,1,.25]}} transition={{duration:1.2,repeat:Infinity,delay:i*.18}}>→</motion.i>}
+      </React.Fragment>)}
+    </div>
+
+    <div className="mtEngineCandidates">
+      <div className="mtEngineCandidatesHead"><span>TOP VIBE CLUSTERS</span><b>MODEL MATCH</b></div>
+      {candidates.map((item,i)=><div className="mtEngineCandidate" key={item.category}>
+        <span>0{i+1}</span>
+        <div><b>{item.category.toUpperCase()}</b><i><motion.em initial={{scaleX:0}} animate={{scaleX:item.score/100}} transition={{duration:.8,delay:.15+i*.1}}/></i></div>
+        <strong>{item.score}%</strong>
+      </div>)}
+    </div>
+
+    <div className="mtSignalFormula">
+      <span>FINAL RANK</span>
+      <b>VIBE MATCH + DISTANCE + REVIEW QUALITY</b>
+    </div>
   </div>;
 }
 
@@ -408,8 +445,21 @@ function InteractiveMap({center,places,selectedId,onSelect}){
   const [streetProviders,setStreetProviders]=useState([]);
   const [streetProvider,setStreetProvider]=useState('auto');
   const [streetIndex,setStreetIndex]=useState(0);
+  const [streetCoverage,setStreetCoverage]=useState({expanded:false,coverageRadiusMeters:900,nearestDistanceMeters:null});
+  const [cameraShift,setCameraShift]=useState({north:0,east:0});
 
   const selectedPlace=places.find(p=>p.id===selectedId)||places[0]||null;
+
+  const cameraCenter=useMemo(()=>{
+    if(!center)return null;
+    const north=Number(cameraShift.north)||0;
+    const east=Number(cameraShift.east)||0;
+    const dLat=north/111111;
+    const dLng=east/(111111*Math.max(.2,Math.cos(center.lat*Math.PI/180)));
+    return {lat:center.lat+dLat,lng:center.lng+dLng};
+  },[center?.lat,center?.lng,cameraShift.north,cameraShift.east]);
+
+  const cameraShiftMeters=Math.round(Math.hypot(cameraShift.north,cameraShift.east));
 
   const providerImages=useMemo(()=>{
     if(streetProvider==='auto')return streetImages;
@@ -419,6 +469,10 @@ function InteractiveMap({center,places,selectedId,onSelect}){
   const streetImage=providerImages.length
     ?providerImages[Math.min(streetIndex,providerImages.length-1)]
     :null;
+
+  useEffect(()=>{
+    setCameraShift({north:0,east:0});
+  },[selectedId,center?.lat,center?.lng]);
 
   useEffect(()=>{
     if(!rootRef.current||!center||mapRef.current)return;
@@ -505,7 +559,7 @@ function InteractiveMap({center,places,selectedId,onSelect}){
   },[layer,center?.lat,center?.lng]);
 
   useEffect(()=>{
-    if(layer!=='camera'||!center){
+    if(layer!=='camera'||!cameraCenter){
       setStreetState('idle');
       return;
     }
@@ -520,13 +574,18 @@ function InteractiveMap({center,places,selectedId,onSelect}){
     (async()=>{
       try{
         const d=await apiJson(
-          '/api/moodtrip?action=streetmedia&lat='+encodeURIComponent(center.lat)+'&lng='+encodeURIComponent(center.lng),
+          '/api/moodtrip?action=streetmedia&lat='+encodeURIComponent(cameraCenter.lat)+'&lng='+encodeURIComponent(cameraCenter.lng),
           {},
-          10000
+          16000
         );
         if(!alive)return;
         setStreetImages(Array.isArray(d.images)?d.images:[]);
         setStreetProviders(Array.isArray(d.providers)?d.providers:[]);
+        setStreetCoverage({
+          expanded:Boolean(d.expanded),
+          coverageRadiusMeters:Number(d.coverageRadiusMeters)||900,
+          nearestDistanceMeters:Number.isFinite(Number(d.nearestDistanceMeters))?Number(d.nearestDistanceMeters):null
+        });
         setStreetState('ready');
       }catch{
         if(!alive)return;
@@ -535,7 +594,7 @@ function InteractiveMap({center,places,selectedId,onSelect}){
     })();
 
     return()=>{alive=false};
-  },[layer,center?.lat,center?.lng,selectedId]);
+  },[layer,cameraCenter?.lat,cameraCenter?.lng,selectedId]);
 
   useEffect(()=>{
     setStreetIndex(0);
@@ -639,6 +698,37 @@ function InteractiveMap({center,places,selectedId,onSelect}){
     setStreetIndex(i=>(i+delta+providerImages.length)%providerImages.length);
   }
 
+  function moveCamera(northDelta,eastDelta){
+    const MAX=480;
+    setCameraShift(prev=>{
+      let north=(Number(prev.north)||0)+northDelta;
+      let east=(Number(prev.east)||0)+eastDelta;
+      const distance=Math.hypot(north,east);
+      if(distance>MAX){
+        const scale=MAX/distance;
+        north=Math.round(north*scale);
+        east=Math.round(east*scale);
+      }
+      return {north,east};
+    });
+  }
+
+  const cameraMover=layer==='camera'&&streetState!=='loading'&&<div className="mtCameraMove">
+    <div className="mtCameraMoveHead"><span>MOVE CAMERA</span><b>{cameraShiftMeters} M</b></div>
+    <div className="mtCameraMovePad">
+      <span/>
+      <button type="button" onClick={()=>moveCamera(80,0)} aria-label="Move camera 80 meters north">↑</button>
+      <span/>
+      <button type="button" onClick={()=>moveCamera(0,-80)} aria-label="Move camera 80 meters west">←</button>
+      <button type="button" className="reset" onClick={()=>setCameraShift({north:0,east:0})} aria-label="Reset camera to selected place">◎</button>
+      <button type="button" onClick={()=>moveCamera(0,80)} aria-label="Move camera 80 meters east">→</button>
+      <span/>
+      <button type="button" onClick={()=>moveCamera(-80,0)} aria-label="Move camera 80 meters south">↓</button>
+      <span/>
+    </div>
+    <small>80 M STEP · MAX 480 M</small>
+  </div>;
+
   return <div className="mtLeafletShell">
     <div className="mtMapLayerSwitch" role="group" aria-label="Map style">
       <button className={layer==='satellite'?'active':''} onClick={()=>setLayer('satellite')}>SATELLITE</button>
@@ -649,14 +739,18 @@ function InteractiveMap({center,places,selectedId,onSelect}){
     <div className={'mtBuildingStatus '+(layer==='camera'?'camera':buildingState)}>
       <i/>
       <span>{layer==='camera'
-        ?(streetState==='loading'?'SEARCHING OPEN STREET IMAGERY':streetImage?streetImage.provider.toUpperCase()+' STREET PHOTO':'OPEN STREET CAMERA')
+        ?(streetState==='loading'
+          ?'SEARCHING OPEN STREET IMAGERY'
+          :streetImage
+            ?streetImage.provider.toUpperCase()+(streetCoverage.expanded?' · EXPANDED COVERAGE':'')
+            :'OPEN STREET CAMERA')
         :(buildingState==='loading'?'FINDING BUILDING OUTLINE':buildingState==='found'?'EXACT BUILDING OUTLINE':'EXACT COORDINATE ZOOM')}</span>
     </div>
 
     <div className="mtLeafletMap" ref={rootRef}/>
 
     {layer==='camera'&&<div className="mtStreetCamera mtOpenStreetCamera">
-      {streetState==='loading'&&<div className="mtStreetCameraState"><i/><span>SEARCHING PANORAMAX + KARTAVIEW{streetProviders.some(p=>p.id==='mapillary'&&p.status!=='token-optional')?' + MAPILLARY':''}…</span></div>}
+      {streetState==='loading'&&<div className="mtStreetCameraState"><i/><span>SEARCHING PANORAMAX + KARTAVIEW + OPTIONAL MAPILLARY…</span></div>}
 
       {streetState==='ready'&&streetImage&&<>
         <div className="mtStreetProviderTabs">
@@ -695,12 +789,15 @@ function InteractiveMap({center,places,selectedId,onSelect}){
           </>}
         </div>
 
+        {cameraMover}
+
         <div className="mtStreetCameraCaption">
           <div>
-            <span>{streetImage.provider.toUpperCase()} · {streetImage.isPano?'360° / STREET LEVEL':'STREET LEVEL'}</span>
+            <span>{streetImage.provider.toUpperCase()} · {streetImage.isPano?'360° / STREET LEVEL':'STREET LEVEL'}{streetCoverage.expanded?' · WIDER COVERAGE':''}</span>
             <b>{selectedPlace?.name||'SELECTED BUILDING'}</b>
             <small>
-              {streetImage.distanceMeters!=null?streetImage.distanceMeters+' m from selected coordinate':''}
+              {streetImage.distanceMeters!=null?streetImage.distanceMeters+' m from camera point':''}
+              {cameraShiftMeters?' · camera moved '+cameraShiftMeters+' m from place':''}
               {streetImage.aimDelta!=null?' · '+Math.round(streetImage.aimDelta)+'° camera offset':''}
               {streetImage.capturedAt?' · '+new Date(streetImage.capturedAt).toLocaleDateString():''}
             </small>
@@ -712,32 +809,38 @@ function InteractiveMap({center,places,selectedId,onSelect}){
         </div>
       </>}
 
-      {streetState==='ready'&&!streetImages.length&&<div className="mtStreetCameraFallback">
-        <span>NO OPEN STREET PHOTO WITHIN ~900 M</span>
-        <h4>The building is mapped correctly, but community street imagery has not been uploaded close enough yet.</h4>
-        <p>Satellite + building-outline mode still gives the exact location. You can also check the three open street-imagery networks directly, or use Google Street View externally without embedding it in MoodTrip.</p>
-        <div className="mtOpenCameraLinks">
-          <a href={panoramaxExplore} target="_blank" rel="noreferrer">PANORAMAX ↗</a>
-          <a href={kartaExplore} target="_blank" rel="noreferrer">KARTAVIEW ↗</a>
-          <a href={mapillaryExplore} target="_blank" rel="noreferrer">MAPILLARY ↗</a>
-          <a href={exactGoogleStreetUrl} target="_blank" rel="noreferrer">GOOGLE STREET VIEW ↗</a>
+      {streetState==='ready'&&!streetImages.length&&<>
+        {cameraMover}
+        <div className="mtStreetCameraFallback">
+          <span>NO OPEN STREET PHOTO WITHIN ~2.5 KM OF THIS CAMERA POINT</span>
+          <h4>Try moving the camera to a nearby road.</h4>
+          <p>Use the 80 m arrow controls to scan around the selected building. MoodTrip will search Panoramax, KartaView and optional Mapillary again after every move. Satellite + building outline remains the exact location reference.</p>
+          <div className="mtOpenCameraLinks">
+            <a href={panoramaxExplore} target="_blank" rel="noreferrer">PANORAMAX ↗</a>
+            <a href={kartaExplore} target="_blank" rel="noreferrer">KARTAVIEW ↗</a>
+            <a href={mapillaryExplore} target="_blank" rel="noreferrer">MAPILLARY ↗</a>
+            <a href={exactGoogleStreetUrl} target="_blank" rel="noreferrer">GOOGLE STREET VIEW ↗</a>
+          </div>
         </div>
-      </div>}
+      </>}
 
-      {streetState==='error'&&<div className="mtStreetCameraFallback">
-        <span>STREET IMAGERY SOURCES DID NOT ANSWER</span>
-        <h4>Satellite and exact building-outline mode are still available.</h4>
-        <p>Open-source street imagery can occasionally be sparse or temporarily unavailable. Nothing about the selected place or its coordinates has changed.</p>
-        <div className="mtOpenCameraLinks">
-          <a href={panoramaxExplore} target="_blank" rel="noreferrer">PANORAMAX ↗</a>
-          <a href={kartaExplore} target="_blank" rel="noreferrer">KARTAVIEW ↗</a>
-          <a href={mapillaryExplore} target="_blank" rel="noreferrer">MAPILLARY ↗</a>
+      {streetState==='error'&&<>
+        {cameraMover}
+        <div className="mtStreetCameraFallback">
+          <span>STREET IMAGERY SOURCES DID NOT ANSWER</span>
+          <h4>Satellite and exact building-outline mode are still available.</h4>
+          <p>Open-source street imagery can occasionally be sparse or temporarily unavailable. Move the camera slightly or retry the Street Camera tab.</p>
+          <div className="mtOpenCameraLinks">
+            <a href={panoramaxExplore} target="_blank" rel="noreferrer">PANORAMAX ↗</a>
+            <a href={kartaExplore} target="_blank" rel="noreferrer">KARTAVIEW ↗</a>
+            <a href={mapillaryExplore} target="_blank" rel="noreferrer">MAPILLARY ↗</a>
+          </div>
         </div>
-      </div>}
+      </>}
     </div>}
 
     <div className="mtMapHint">{layer==='camera'
-      ?'OPEN STREET IMAGERY · NEAREST PHOTO + CAMERA DIRECTION MATCH'
+      ?'OPEN STREET IMAGERY · MOVE CAMERA IN 80 M STEPS · NEAREST PHOTO + DIRECTION MATCH'
       :'SCROLL / PINCH / DRAG · BUILDING OUTLINE STAYS PRECISE AT MAX AVAILABLE SATELLITE DETAIL'}</div>
     <div className="mtZoomReadout">{layer==='camera'
       ?(streetImage?streetImage.provider.toUpperCase():'STREET CAMERA')
