@@ -19,7 +19,9 @@ import{
   contextualBanditScore,
   productionEnsembleScore,
   totalFeedbackSignals,
-  feedbackKey
+  feedbackKey,
+  explainDistilledRanker,
+  placeFeedbackAdjustment
 }from'./moodtripML';
 import'leaflet/dist/leaflet.css';
 import'./moodtrip.css';
@@ -456,7 +458,7 @@ function InteractiveMap({center,places,selectedId,onSelect}){
   const [streetProviders,setStreetProviders]=useState([]);
   const [streetProvider,setStreetProvider]=useState('auto');
   const [streetIndex,setStreetIndex]=useState(0);
-  const [streetCoverage,setStreetCoverage]=useState({expanded:false,coverageRadiusMeters:900,nearestDistanceMeters:null});
+  const [streetCoverage,setStreetCoverage]=useState({expanded:false,coverageRadiusMeters:900,nearestDistanceMeters:null,fallbackMedia:null});
   const [cameraShift,setCameraShift]=useState({north:0,east:0});
 
   const selectedPlace=places.find(p=>p.id===selectedId)||places[0]||null;
@@ -595,7 +597,8 @@ function InteractiveMap({center,places,selectedId,onSelect}){
         setStreetCoverage({
           expanded:Boolean(d.expanded),
           coverageRadiusMeters:Number(d.coverageRadiusMeters)||900,
-          nearestDistanceMeters:Number.isFinite(Number(d.nearestDistanceMeters))?Number(d.nearestDistanceMeters):null
+          nearestDistanceMeters:Number.isFinite(Number(d.nearestDistanceMeters))?Number(d.nearestDistanceMeters):null,
+          fallbackMedia:d.fallbackMedia||null
         });
         setStreetState('ready');
       }catch{
@@ -753,7 +756,7 @@ function InteractiveMap({center,places,selectedId,onSelect}){
         ?(streetState==='loading'
           ?'SEARCHING OPEN STREET IMAGERY'
           :streetImage
-            ?streetImage.provider.toUpperCase()+(streetCoverage.expanded?' · EXPANDED COVERAGE':'')
+            ?streetImage.provider.toUpperCase()+(streetCoverage.fallbackMedia?' · PHOTO FALLBACK':streetCoverage.expanded?' · EXPANDED COVERAGE':'')
             :'OPEN STREET CAMERA')
         :(buildingState==='loading'?'FINDING BUILDING OUTLINE':buildingState==='found'?'EXACT BUILDING OUTLINE':'EXACT COORDINATE ZOOM')}</span>
     </div>
@@ -767,7 +770,7 @@ function InteractiveMap({center,places,selectedId,onSelect}){
         <div className="mtStreetProviderTabs">
           <button className={streetProvider==='auto'?'active':''} onClick={()=>setStreetProvider('auto')}>BEST MATCH <b>{streetImages.length}</b></button>
           {streetProviders.map(provider=>{
-            const label=provider.id==='panoramax'?'PANORAMAX':provider.id==='kartaview'?'KARTAVIEW':'MAPILLARY';
+            const label=provider.id==='panoramax'?'PANORAMAX':provider.id==='kartaview'?'KARTAVIEW':provider.id==='wikimedia'?'NEARBY PHOTO':'MAPILLARY';
             const disabled=provider.count===0;
             return <button
               key={provider.id}
@@ -804,7 +807,7 @@ function InteractiveMap({center,places,selectedId,onSelect}){
 
         <div className="mtStreetCameraCaption">
           <div>
-            <span>{streetImage.provider.toUpperCase()} · {streetImage.isPano?'360° / STREET LEVEL':'STREET LEVEL'}{streetCoverage.expanded?' · WIDER COVERAGE':''}</span>
+            <span>{streetImage.provider.toUpperCase()} · {streetImage.providerId==='wikimedia'?'GEOTAGGED PLACE PHOTO / NOT STREET VIEW':streetImage.isPano?'360° / STREET LEVEL':'STREET LEVEL'}{streetCoverage.expanded?' · WIDER COVERAGE':''}</span>
             <b>{selectedPlace?.name||'SELECTED BUILDING'}</b>
             <small>
               {streetImage.distanceMeters!=null?streetImage.distanceMeters+' m from camera point':''}
@@ -822,10 +825,18 @@ function InteractiveMap({center,places,selectedId,onSelect}){
 
       {streetState==='ready'&&!streetImages.length&&<>
         {cameraMover}
-        <div className="mtStreetCameraFallback">
-          <span>NO OPEN STREET PHOTO WITHIN ~2.5 KM OF THIS CAMERA POINT</span>
-          <h4>Try moving the camera to a nearby road.</h4>
-          <p>Use the 80 m arrow controls to scan around the selected building. MoodTrip will search Panoramax, KartaView and optional Mapillary again after every move. Satellite + building outline remains the exact location reference.</p>
+        <div className="mtCoverageExplorer">
+          <div className="mtCoverageCopy">
+            <span>OPEN MEDIA COVERAGE</span>
+            <h4>No public camera or geotagged photo was found at this point.</h4>
+            <p>Move the search point toward a nearby road in 80 m steps, or switch back to Satellite for the exact building. MoodTrip never substitutes an unrelated photo just to fill the panel.</p>
+          </div>
+          <div className="mtCoverageSources">
+            {streetProviders.length?streetProviders.map(source=><div key={source.id}>
+              <span>{source.id==='wikimedia'?'WIKIMEDIA':source.id.toUpperCase()}</span>
+              <b>{source.count?source.count+' FOUND':source.status==='unavailable'?'OFFLINE':'NO COVERAGE'}</b>
+            </div>):<div><span>MEDIA NETWORKS</span><b>RETRY AVAILABLE</b></div>}
+          </div>
           <div className="mtOpenCameraLinks">
             <a href={panoramaxExplore} target="_blank" rel="noreferrer">PANORAMAX ↗</a>
             <a href={kartaExplore} target="_blank" rel="noreferrer">KARTAVIEW ↗</a>
@@ -837,10 +848,12 @@ function InteractiveMap({center,places,selectedId,onSelect}){
 
       {streetState==='error'&&<>
         {cameraMover}
-        <div className="mtStreetCameraFallback">
-          <span>STREET IMAGERY SOURCES DID NOT ANSWER</span>
-          <h4>Satellite and exact building-outline mode are still available.</h4>
-          <p>Open-source street imagery can occasionally be sparse or temporarily unavailable. Move the camera slightly or retry the Street Camera tab.</p>
+        <div className="mtCoverageExplorer error">
+          <div className="mtCoverageCopy">
+            <span>MEDIA NETWORK RETRY</span>
+            <h4>The open imagery request timed out.</h4>
+            <p>The exact place is unchanged. Switch to Satellite, move the camera point, or reopen Street Camera to retry without losing the recommendation.</p>
+          </div>
           <div className="mtOpenCameraLinks">
             <a href={panoramaxExplore} target="_blank" rel="noreferrer">PANORAMAX ↗</a>
             <a href={kartaExplore} target="_blank" rel="noreferrer">KARTAVIEW ↗</a>
@@ -851,7 +864,7 @@ function InteractiveMap({center,places,selectedId,onSelect}){
     </div>}
 
     <div className="mtMapHint">{layer==='camera'
-      ?'OPEN STREET IMAGERY · MOVE CAMERA IN 80 M STEPS · NEAREST PHOTO + DIRECTION MATCH'
+      ?'OPEN MEDIA · STREET CAMERA FIRST · WIKIMEDIA PHOTO FALLBACK · MOVE IN 80 M STEPS'
       :'SCROLL / PINCH / DRAG · BUILDING OUTLINE STAYS PRECISE AT MAX AVAILABLE SATELLITE DETAIL'}</div>
     <div className="mtZoomReadout">{layer==='camera'
       ?(streetImage?streetImage.provider.toUpperCase():'STREET CAMERA')
@@ -949,6 +962,39 @@ function App(){
   const activeCrowd=crowd==='any'?CROWD_DEFAULT[activeMood]:crowd;
   const selected=places.find(p=>p.id===selectedId)||places[0]||null;
   const feedbackSignals=useMemo(()=>totalFeedbackSignals(feedback),[feedback]);
+  const selectedExplanation=useMemo(()=>{
+    if(!selected?.rankFeatures)return null;
+    const sensitivity=explainDistilledRanker(selected.rankFeatures);
+    const maxAbs=Math.max(.001,...sensitivity.map(x=>Math.abs(x.delta)));
+    const normalized=sensitivity.map(x=>({...x,strength:Math.abs(x.delta)/maxAbs}));
+
+    const categoryVector=CATEGORY_FEATURES[selected.category]||CATEGORY_FEATURES.unknown;
+    const alternatives=Object.entries(MOOD_VECTORS)
+      .filter(([mood])=>mood!==resultsMood)
+      .map(([mood,moodVector])=>{
+        const features=[...selected.rankFeatures];
+        moodVector.forEach((v,i)=>{features[i]=v});
+        const neural=predictDistilledRanker(features);
+        const content=(cosine(moodVector,categoryVector)+1)/2;
+        const bandit=contextualBanditScore(feedback,mood,selected.category);
+        const item=placeFeedbackAdjustment(feedback,mood,selected.id);
+        const score=clamp(productionEnsembleScore({
+          neuralScore:neural,
+          contentScore:content,
+          banditScore:bandit.score
+        })+item.adjustment);
+        return {mood,score:score*100};
+      })
+      .sort((a,b)=>b.score-a.score);
+
+    const currentItem=placeFeedbackAdjustment(feedback,resultsMood,selected.id);
+    return {
+      sensitivity:normalized,
+      strongest:normalized[0]||null,
+      counterfactual:alternatives[0]||null,
+      feedbackDelta:currentItem.adjustment*100
+    };
+  },[selected,resultsMood,feedback]);
 
   async function useMyLocation(){
     setError('');
@@ -1105,11 +1151,12 @@ function App(){
 
       const neuralScore=predictDistilledRanker(rankFeatures);
       const bandit=contextualBanditScore(feedback,mood,p.category);
-      const finalScore=productionEnsembleScore({
+      const itemFeedback=placeFeedbackAdjustment(feedback,mood,p.id);
+      const finalScore=clamp(productionEnsembleScore({
         neuralScore,
         contentScore,
         banditScore:bandit.score
-      });
+      })+itemFeedback.adjustment);
 
       return {
         ...p,
@@ -1120,6 +1167,9 @@ function App(){
         banditScore:bandit.score*100,
         banditMean:bandit.mean*100,
         banditObservations:bandit.observations,
+        itemFeedbackState:itemFeedback.state,
+        itemFeedbackObservations:itemFeedback.observations,
+        itemFeedbackAdjustment:itemFeedback.adjustment*100,
         crowdEstimate:estimate,
         moodFit:contentScore,
         rankFeatures
@@ -1199,37 +1249,51 @@ function App(){
   }
 
   function recordPreference(place,positive){
-    const key=feedbackKey(resultsMood,place.category);
-    const current=feedback[key]||{pos:0,neg:0};
+    const categoryKey=feedbackKey(resultsMood,place.category);
+    const placeKey='place|'+resultsMood+'|'+place.id;
+    const currentCategory=feedback[categoryKey]||{pos:0,neg:0};
+    const currentPlace=feedback[placeKey]||{pos:0,neg:0};
+
     const next={
       ...feedback,
-      [key]:{
-        pos:(Number(current.pos)||0)+(positive?1:0),
-        neg:(Number(current.neg)||0)+(positive?0:1)
+      [categoryKey]:{
+        pos:(Number(currentCategory.pos)||0)+(positive?1:0),
+        neg:(Number(currentCategory.neg)||0)+(positive?0:1)
+      },
+      [placeKey]:{
+        pos:(Number(currentPlace.pos)||0)+(positive?1:0),
+        neg:(Number(currentPlace.neg)||0)+(positive?0:1)
       }
     };
+
     setFeedback(next);
     try{localStorage.setItem('moodtrip-v3-feedback',JSON.stringify(next))}catch{}
 
-    // Update every currently visible candidate immediately so the user can see
-    // the online learner change the ranking without running another search.
     setPlaces(prev=>sortRankedPlaces(prev.map(p=>{
       const bandit=contextualBanditScore(next,resultsMood,p.category);
+      const item=placeFeedbackAdjustment(next,resultsMood,p.id);
       const neural=(Number(p.neuralScore)||0)/100;
       const content=(Number(p.contentScore)||Number(p.moodFit)||0)/100;
-      const mlScore=productionEnsembleScore({
+      const mlScore=clamp(productionEnsembleScore({
         neuralScore:neural,
         contentScore:content,
         banditScore:bandit.score
-      })*100;
+      })+item.adjustment)*100;
       return {
         ...p,
         mlScore,
         banditScore:bandit.score*100,
         banditMean:bandit.mean*100,
-        banditObservations:bandit.observations
+        banditObservations:bandit.observations,
+        itemFeedbackState:item.state,
+        itemFeedbackObservations:item.observations,
+        itemFeedbackAdjustment:item.adjustment*100
       };
     })));
+
+    // If the currently selected card is rejected, let the next highest-ranked
+    // recommendation take focus instead of keeping the rejected place pinned.
+    if(!positive&&selectedId===place.id)setSelectedId(null);
   }
 
   const mapCenter=useMemo(()=>selected?{lat:selected.lat,lng:selected.lng}:coords,[selected,coords]);
@@ -1445,19 +1509,67 @@ function App(){
                   <span><b>{p.rating?Number(p.rating).toFixed(1):'—'}</b> rating</span>
                   <span><b>{Math.round(p.neuralScore||0)}%</b> neural</span>
                   <span><b>{Math.round(p.banditMean||50)}%</b> learned preference</span>
-                  <span><b>{p.banditObservations||0}</b> feedback samples</span>
+                  <span><b>{p.banditObservations||0}</b> category samples</span>
+                  <span><b>{p.itemFeedbackObservations||0}</b> place samples</span>
                   <span><b>{p.crowdEstimate}</b> crowd proxy</span>
                 </div>
               </div>
               <div className="mtPlaceActions">
-                <button onClick={e=>{e.stopPropagation();recordPreference(p,true)}}>GOOD PICK +</button>
-                <button className="negative" onClick={e=>{e.stopPropagation();recordPreference(p,false)}}>NOT FOR ME −</button>
+                <button className={p.itemFeedbackState==='positive'?'activeFeedback':''} onClick={e=>{e.stopPropagation();recordPreference(p,true)}}>{p.itemFeedbackState==='positive'?'GOOD PICK ✓':'GOOD PICK +'}</button>
+                <button className={'negative '+(p.itemFeedbackState==='negative'?'activeFeedback':'')} onClick={e=>{e.stopPropagation();recordPreference(p,false)}}>{p.itemFeedbackState==='negative'?'NOT FOR ME ✓':'NOT FOR ME −'}</button>
                 <button onClick={e=>{e.stopPropagation();openReviews(p)}}>REVIEWS ↗</button>
                 <a onClick={e=>e.stopPropagation()} href={googleMapsUrl(p)} target="_blank" rel="noreferrer">MAPS ↗</a>
               </div>
             </motion.article>)}
           </div>
         </div>
+
+        {selected&&selectedExplanation&&<section className="mtExplainAI">
+          <div className="mtExplainHead">
+            <div>
+              <span>EXPLAINABLE AI / SELECTED PLACE</span>
+              <h3>Why did the model choose <em>{selected.name}</em>?</h3>
+              <p>This is a local sensitivity explanation of the production neural ranker. Each feature group is neutralized one at a time to measure how much the score changes. It is an ablation explanation, not a SHAP claim.</p>
+            </div>
+            <div className="mtExplainScore">
+              <strong>{Math.round(selected.mlScore)}%</strong>
+              <span>FINAL FIT</span>
+            </div>
+          </div>
+
+          <div className="mtExplainGrid">
+            <div className="mtExplainFactors">
+              {selectedExplanation.sensitivity.slice(0,6).map(factor=><div className="mtExplainFactor" key={factor.id}>
+                <div><span>{factor.label.toUpperCase()}</span><b>{factor.delta>=0?'+':''}{(factor.delta*100).toFixed(1)} pts</b></div>
+                <i><motion.em
+                  initial={{scaleX:0}}
+                  whileInView={{scaleX:Math.max(.08,factor.strength)}}
+                  viewport={{once:true}}
+                  transition={{duration:.65}}
+                  className={factor.delta>=0?'positive':'negative'}
+                /></i>
+              </div>)}
+            </div>
+
+            <div className="mtExplainDecision">
+              <div>
+                <span>STRONGEST LOCAL SIGNAL</span>
+                <b>{selectedExplanation.strongest?.label||'Context'}</b>
+                <small>{selectedExplanation.strongest?.delta>=0?'helped':'reduced'} the neural score by about {Math.abs((selectedExplanation.strongest?.delta||0)*100).toFixed(1)} points.</small>
+              </div>
+              <div>
+                <span>ONLINE LEARNING</span>
+                <b>{selected.itemFeedbackState==='negative'?'PLACE DEMOTED':selected.itemFeedbackState==='positive'?'PLACE BOOSTED':'NO ITEM FEEDBACK YET'}</b>
+                <small>{selectedExplanation.feedbackDelta?((selectedExplanation.feedbackDelta>0?'+':'')+selectedExplanation.feedbackDelta.toFixed(1)+' points from exact-place feedback'):'Good Pick / Not For Me will adapt this exact recommendation instantly.'}</small>
+              </div>
+              <div>
+                <span>COUNTERFACTUAL</span>
+                <b>{selectedExplanation.counterfactual?selectedExplanation.counterfactual.mood.toUpperCase():'—'}</b>
+                <small>{selectedExplanation.counterfactual?'Holding distance, rating, crowd and time constant, this place would score '+Math.round(selectedExplanation.counterfactual.score)+'% for that mood.':'No alternate mood available.'}</small>
+              </div>
+            </div>
+          </div>
+        </section>}
 
         {provider==='OpenStreetMap'&&<div className="mtProviderNotice"><span>REVIEW DATA</span><p>MoodTrip uses live open map sources for nearby discovery and does not invent ratings. Open <b>Reviews</b> on any result to see public web review snippets when available, MoodTrip community reviews, and a Google Reviews link for that exact selected place.</p></div>}
       </>:<div className="mtEmptyResults"><span>03</span><h3>Share a location, choose the mood, then run the pipeline.</h3><p>The page will query live nearby places rather than showing a fixed Jaipur demo list.</p></div>}
