@@ -609,6 +609,54 @@ function streetProviderSummary(id,status,count,error=''){
   return {id,status,count:Number(count)||0,error:error||''};
 }
 
+
+async function wikimediaNearbyImages(lat,lng,headers,radiusMeters=5000){
+  const radius=Math.max(500,Math.min(10000,Number(radiusMeters)||5000));
+  const url='https://commons.wikimedia.org/w/api.php?action=query&format=json&formatversion=2'+
+    '&generator=geosearch&ggsnamespace=6&ggsprimary=all&ggsradius='+encodeURIComponent(radius)+
+    '&ggscoord='+encodeURIComponent(lat+'|'+lng)+
+    '&ggslimit=24&prop=imageinfo|coordinates'+
+    '&iiprop=url|mime|extmetadata&iiurlwidth=1600';
+  const data=await fetchJson(url,{headers},6500);
+  const pages=Array.isArray(data?.query?.pages)?data.query.pages:[];
+  return pages.map((page,index)=>{
+    const info=page?.imageinfo?.[0]||{};
+    const coord=page?.coordinates?.[0]||{};
+    const plat=Number(coord.lat),plng=Number(coord.lon);
+    if(!Number.isFinite(plat)||!Number.isFinite(plng))return null;
+    const imageUrl=info.thumburl||info.url||'';
+    if(!/^https?:\/\//i.test(imageUrl))return null;
+    const mime=String(info.mime||'');
+    if(mime&&!/^image\//i.test(mime))return null;
+    const meta=info.extmetadata||{};
+    const capturedRaw=meta.DateTimeOriginal?.value||meta.DateTime?.value||'';
+    const capturedAt=capturedRaw?Date.parse(String(capturedRaw).replace(/<[^>]+>/g,'')):null;
+    const id=String(page.pageid||('commons-'+index));
+    const distanceMeters=Math.round(haversineKm({lat,lng},{lat:plat,lng:plng})*1000);
+    return {
+      id:'wikimedia-'+id,
+      rawId:id,
+      provider:'Wikimedia Commons',
+      providerId:'wikimedia',
+      lat:plat,
+      lng:plng,
+      heading:null,
+      capturedAt:Number.isFinite(capturedAt)?capturedAt:null,
+      imageUrl,
+      previewUrl:imageUrl,
+      isPano:false,
+      sequenceId:'',
+      viewerUrl:'https://commons.wikimedia.org/?curid='+encodeURIComponent(id),
+      attribution:'Wikimedia Commons nearby geotagged photo',
+      quality:'nearby-photo',
+      distanceMeters,
+      targetBearing:null,
+      aimDelta:null,
+      score:distanceMeters+140
+    };
+  }).filter(Boolean).sort((a,b)=>a.distanceMeters-b.distanceMeters).slice(0,12);
+}
+
 async function openStreetImagery(lat,lng,headers){
   const searchRadiusMeters=2500;
   const jobs=[
@@ -629,19 +677,35 @@ async function openStreetImagery(lat,lng,headers){
     }
   }));
 
-  const all=settled.flatMap(x=>x.items||[])
+  let all=settled.flatMap(x=>x.items||[])
     .filter(item=>item&&item.distanceMeters<=searchRadiusMeters)
     .sort((a,b)=>a.score-b.score);
 
-  const local=all.filter(item=>item.distanceMeters<=900);
+  // If open street-photo networks are empty or temporarily unavailable,
+  // degrade to nearby geotagged Wikimedia photos instead of a dead panel.
+  let wikiResult={id:'wikimedia',status:'standby',items:[],error:''};
+  if(!all.length){
+    try{
+      const items=await wikimediaNearbyImages(lat,lng,headers,5000);
+      wikiResult={id:'wikimedia',status:items.length?'fallback':'empty',items};
+      all=items;
+    }catch(e){
+      wikiResult={id:'wikimedia',status:'unavailable',items:[],error:e?.message||'provider error'};
+    }
+  }
+
+  const local=all.filter(item=>item.providerId==='wikimedia'||item.distanceMeters<=900);
   const usable=local.length?local:all;
 
+  const sources=[...settled,wikiResult];
   const byProvider=new Map();
-  settled.forEach(result=>{
+  sources.forEach(result=>{
     const source=(result.items||[])
-      .filter(item=>item&&item.distanceMeters<=searchRadiusMeters)
+      .filter(item=>item&&(item.providerId==='wikimedia'||item.distanceMeters<=searchRadiusMeters))
       .sort((a,b)=>a.score-b.score);
-    const preferred=local.length?source.filter(item=>item.distanceMeters<=900):source;
+    const preferred=local.length
+      ?source.filter(item=>item.providerId==='wikimedia'||item.distanceMeters<=900)
+      :source;
     byProvider.set(result.id,preferred);
   });
 
@@ -650,7 +714,7 @@ async function openStreetImagery(lat,lng,headers){
   let round=0;
   while(balanced.length<18){
     let added=false;
-    for(const result of settled){
+    for(const result of sources){
       const candidate=(byProvider.get(result.id)||[])[round];
       if(!candidate)continue;
       const key=candidate.providerId+'|'+candidate.rawId;
@@ -674,11 +738,14 @@ async function openStreetImagery(lat,lng,headers){
   }
 
   balanced.sort((a,b)=>{
+    if(a.providerId==='wikimedia'&&b.providerId!=='wikimedia')return 1;
+    if(b.providerId==='wikimedia'&&a.providerId!=='wikimedia')return -1;
     const nearGap=a.distanceMeters-b.distanceMeters;
     if(Math.abs(nearGap)>90)return nearGap;
     return a.score-b.score;
   });
 
+  const hasStreet=balanced.some(x=>x.providerId!=='wikimedia');
   return {
     images:balanced,
     providers:[
@@ -687,13 +754,15 @@ async function openStreetImagery(lat,lng,headers){
         const count=local.length?items.filter(item=>item.distanceMeters<=900).length:items.length;
         return streetProviderSummary(x.id,x.status,count,x.error);
       }),
+      streetProviderSummary('wikimedia',wikiResult.status,wikiResult.items.length,wikiResult.error),
       ...(process.env.MAPILLARY_ACCESS_TOKEN||process.env.MAPILLARY_TOKEN
         ?[]
         :[streetProviderSummary('mapillary','token-optional',0)])
     ],
     selected:balanced[0]||null,
-    coverageRadiusMeters:local.length?900:searchRadiusMeters,
-    expanded:!local.length&&balanced.length>0,
+    coverageRadiusMeters:hasStreet?(local.length?900:searchRadiusMeters):5000,
+    expanded:hasStreet?!local.length:false,
+    fallbackMedia:!hasStreet&&balanced.length>0?'wikimedia-nearby-photo':null,
     nearestDistanceMeters:balanced[0]?.distanceMeters??null
   };
 }
@@ -1413,8 +1482,22 @@ export default async function handler(req,res){
       const lat=num(req.query.lat,-90,90);
       const lng=num(req.query.lng,-180,180);
       if(lat===null||lng===null)return send(res,400,{error:'Invalid coordinates'},0);
-      const data=await openStreetImagery(lat,lng,headers);
-      return send(res,200,data,data.images.length?300:60);
+      try{
+        const data=await openStreetImagery(lat,lng,headers);
+        return send(res,200,data,data.images.length?300:60);
+      }catch(e){
+        console.warn('Street media lookup failed',e?.message);
+        return send(res,200,{
+          images:[],
+          providers:[],
+          selected:null,
+          coverageRadiusMeters:0,
+          expanded:false,
+          fallbackMedia:null,
+          nearestDistanceMeters:null,
+          degraded:true
+        },30);
+      }
     }
 
     if(action==='webreviews'){
