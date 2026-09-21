@@ -1,10 +1,16 @@
 const JSON_HEADERS={
   'Content-Type':'application/json; charset=utf-8',
-  'Cache-Control':'no-store'
+  'Cache-Control':'no-store',
+  'X-Content-Type-Options':'nosniff'
 };
 
-function json(body,status=200){
-  return new Response(JSON.stringify(body),{status,headers:JSON_HEADERS});
+const MAX_BATCH=30;
+const WINDOW_MS=60_000;
+const MAX_REQUESTS=45;
+const buckets=new Map();
+
+function json(body,status=200,extraHeaders={}){
+  return new Response(JSON.stringify(body),{status,headers:{...JSON_HEADERS,...extraHeaders}});
 }
 
 function env(){
@@ -26,6 +32,25 @@ function safeFeatures(value){
   if(!Array.isArray(value)||value.length!==22)return null;
   const out=value.map(v=>safeNumber(v,-10,10));
   return out.every(Number.isFinite)?out:null;
+}
+
+function clientKey(request){
+  const forwarded=request.headers.get('x-forwarded-for')||'';
+  return cleanString(forwarded.split(',')[0]||request.headers.get('x-real-ip')||'anonymous',96);
+}
+
+function rateLimit(request){
+  const key=clientKey(request);
+  const now=Date.now();
+  const current=buckets.get(key);
+  if(!current||now-current.started>=WINDOW_MS){
+    buckets.set(key,{started:now,count:1});
+    return null;
+  }
+  current.count+=1;
+  if(current.count<=MAX_REQUESTS)return null;
+  const retry=Math.max(1,Math.ceil((WINDOW_MS-(now-current.started))/1000));
+  return json({error:'Too many feedback requests. Please retry shortly.'},429,{'Retry-After':String(retry)});
 }
 
 function cleanEvent(payload){
@@ -50,8 +75,7 @@ function cleanEvent(payload){
     provider:cleanString(payload.provider,64),
     source:'moodtrip-web'
   };
-  if(!row.session_id||!row.mood||!row.category||!row.place_id||!row.rank_features)return null;
-  if(eventType==='feedback'&&!row.recommendation_id)return null;
+  if(!row.session_id||!row.recommendation_id||!row.mood||!row.category||!row.place_id||!row.rank_features)return null;
   return row;
 }
 
@@ -68,21 +92,31 @@ async function supabase(path,options={}){
     }
   });
   if(!response.ok){
-    const text=await response.text().catch(()=>'');
-    throw new Error('supabase-'+response.status+': '+text.slice(0,240));
+    const body=await response.text().catch(()=>'');
+    throw new Error('supabase-'+response.status+': '+body.slice(0,240));
   }
   const type=response.headers.get('content-type')||'';
   return type.includes('application/json')?response.json():null;
 }
 
+function eventKey(row){
+  return [row.session_id,row.recommendation_id,row.place_id,row.event_type].join('|');
+}
+
 async function storeFeedback(payload){
   const rawEvents=Array.isArray(payload?.events)?payload.events:[payload];
-  const rows=rawEvents.map(cleanEvent).filter(Boolean);
+  if(rawEvents.length>MAX_BATCH)throw new Error('batch-too-large');
+  const deduped=new Map();
+  for(const raw of rawEvents){
+    const row=cleanEvent(raw);
+    if(row)deduped.set(eventKey(row),row);
+  }
+  const rows=[...deduped.values()];
   if(!rows.length)throw new Error('invalid-feedback-payload');
 
-  await supabase('moodtrip_feedback',{
+  await supabase('moodtrip_feedback?on_conflict=session_id,recommendation_id,place_id,event_type',{
     method:'POST',
-    headers:{Prefer:'return=minimal'},
+    headers:{Prefer:'resolution=merge-duplicates,return=minimal'},
     body:JSON.stringify(rows)
   });
   return rows.length;
@@ -114,6 +148,9 @@ async function aggregateFeedback(mood){
 
 export default {
   async fetch(request){
+    const limited=rateLimit(request);
+    if(limited)return limited;
+
     const {configured}=env();
     const url=new URL(request.url);
 
@@ -129,6 +166,8 @@ export default {
     }
 
     if(request.method==='POST'){
+      const contentLength=Number(request.headers.get('content-length')||0);
+      if(contentLength>64_000)return json({error:'Feedback payload too large'},413);
       let payload={};
       try{payload=await request.json()}catch{return json({error:'Invalid JSON'},400)}
       if(!configured)return json({stored:false,storage:'local',configured:false},202);
@@ -137,8 +176,9 @@ export default {
         const count=await storeFeedback(payload);
         return json({stored:true,storage:'supabase',configured:true,count},201);
       }catch(error){
-        const invalid=String(error?.message||'').includes('invalid-feedback-payload');
-        console.warn('Feedback store failed',error?.message);
+        const message=String(error?.message||'');
+        const invalid=message.includes('invalid-feedback-payload')||message.includes('batch-too-large');
+        console.warn('Feedback store failed',message);
         return json({
           stored:false,
           storage:'local',
@@ -148,6 +188,6 @@ export default {
       }
     }
 
-    return json({error:'Method not allowed'},405);
+    return json({error:'Method not allowed'},405,{'Allow':'GET, POST'});
   }
 };
